@@ -1,14 +1,15 @@
+#![feature(array_windows)]
 
-use clap::{App, Arg, Parser};
+use clap::{App, Arg};
 use std::fs::File;
-use std::io::{self, BufReader, Read, Result, BufWriter, Write};
+use std::io::{self, BufReader, BufWriter, Read, Result, Write};
 
 const CHUNK_SIZE: usize = 16 * 1024;
 
 pub struct Args {
-	infile: String,
-	outfile: String,
-	chunksize: usize,
+    infile: String,
+    outfile: String,
+    chunksize: usize,
 }
 
 impl Args {
@@ -27,31 +28,31 @@ impl Args {
                     .short('c')
                     .long("chunksize")
                     .takes_value(true)
-					.value_parser(clap::value_parser!(usize))
+                    .value_parser(clap::value_parser!(usize))
                     .help("flush stdout and restart matching after n bytes"),
             )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
-        let chunksize = matches.try_get_one::<usize>("chunksize").unwrap_or_default().unwrap();
+        let chunksize = matches
+            .try_get_one::<usize>("chunksize")
+            .unwrap_or_default()
+            .unwrap();
         Self {
             infile,
             outfile,
-			chunksize: *chunksize,
+            chunksize: *chunksize,
         }
     }
 }
 
 fn main() -> Result<()> {
-	let args = Args::parse();
-	let Args {
-		infile,
-		outfile,
-		chunksize,
-	} = args;
-	println!("infile: {}", infile);
-	println!("outfile: {}", outfile);
-	println!("chunksize: {}", chunksize);
+    let args = Args::parse();
+    let Args {
+        infile,
+        outfile,
+        chunksize,
+    } = args;
     let mut reader: Box<dyn Read> = if !infile.is_empty() {
         Box::new(BufReader::new(File::open(infile)?))
     } else {
@@ -63,32 +64,30 @@ fn main() -> Result<()> {
         Box::new(BufWriter::new(io::stdout()))
     };
 
-	let mut buffer = [0; CHUNK_SIZE];
-	let mut target_buffer = [0; CHUNK_SIZE];
-	let mut times_written = 0;
-	loop {
+    let mut buffer = [0; CHUNK_SIZE];
+    loop {
         let num_read = match reader.read(&mut buffer) {
             Ok(0) => break,
             Ok(x) => x,
             Err(_) => break,
         };
-		target_buffer[..chunksize].copy_from_slice(&buffer[chunksize*times_written..(chunksize*(times_written+1))]);
-		if let Err(e) =writer.write_all(&target_buffer) {
-			break;
-		}
-		times_written += 1;
+
+		let s_buf = &buffer[..num_read];
+		s_buf.chunks(chunksize).for_each(|c| {
+        	writer.write_all(c).unwrap();
+			writer.flush().unwrap();
+			println!();
+		});
     }
 
-
-
-	Ok(())
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn multiply_function() {
-        let result = 5*5;
+        let result = 5 * 5;
         assert_eq!(result, 25);
     }
 }
