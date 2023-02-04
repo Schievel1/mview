@@ -1,8 +1,10 @@
-#![feature(array_windows)]
-
+use bitvec::prelude::*;
 use clap::{App, Arg};
+use core::mem::size_of;
+use core::time;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Result, Write};
+use std::thread;
 
 const CHUNK_SIZE: usize = 16 * 1024;
 
@@ -72,14 +74,106 @@ fn main() -> Result<()> {
             Err(_) => break,
         };
 
-		let s_buf = &buffer[..num_read];
-		s_buf.chunks(chunksize).for_each(|c| {
-        	writer.write_all(c).unwrap();
-			writer.flush().unwrap();
-			println!();
-		});
-    }
+        let config = vec![
+            "Field0:bool1",
+            "Field1:bool1",
+            "Field2:bool1",
+            "Field3:bool1",
+            "Field4:bool1",
+            "Field5:bool1",
+            "Field6:bool1",
+            "Field7:bool1",
+            "Field8:u8",
+            "Field9:u16",
+            "Field10:i32",
+        ];
 
+        let s_buf = &buffer[..num_read];
+        s_buf.chunks(chunksize).for_each(|c| {
+            let c_bits = c.view_bits::<Msb0>();
+            let mut bitpos_in_line = 0;
+            for i in config.iter() {
+                let (fieldname, val_type) = i.split_once(':').unwrap();
+                writer.write_fmt(format_args!("{}", fieldname)).unwrap();
+                writer.write_all(b": ").unwrap();
+                match val_type {
+                    "bool1" => {
+                        writer
+                            .write_fmt(format_args!("{}\n", c_bits[bitpos_in_line]))
+                            .unwrap();
+                        bitpos_in_line += 1;
+                    }
+                    "u8" => {
+                        writer
+                            .write_fmt(format_args!(
+                                "{}\n",
+                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<u8>()]
+                                    .load::<u8>()
+                            ))
+                            .unwrap();
+                        bitpos_in_line += 8;
+                    }
+                    "i8" => {
+                        writer
+                            .write_fmt(format_args!(
+                                "{}\n",
+                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<i8>()]
+                                    .load::<i8>()
+                            ))
+                            .unwrap();
+                        bitpos_in_line += 8;
+                    }
+                    "u16" => {
+                        writer
+                            .write_fmt(format_args!(
+                                "{}\n",
+                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<u16>()]
+                                    .load::<u16>()
+                            ))
+                            .unwrap();
+                        bitpos_in_line += 16;
+                    }
+                    "i16" => {
+                        writer
+                            .write_fmt(format_args!(
+                                "{}\n",
+                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<i16>()]
+                                    .load::<i16>()
+                            ))
+                            .unwrap();
+                        bitpos_in_line += 16;
+                    }
+                    "u32" => {
+                        writer
+                            .write_fmt(format_args!(
+                                "{}\n",
+                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<u32>()]
+                                    .load::<u32>()
+                            ))
+                            .unwrap();
+                        bitpos_in_line += 32;
+                    }
+                    "i32" => {
+                        writer
+                            .write_fmt(format_args!(
+                                "{}\n",
+                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<i32>()]
+                                    .load::<i32>()
+                            ))
+                            .unwrap();
+                        bitpos_in_line += 32;
+                    }
+                    _ => eprintln!("unknown type"),
+                }
+                writer.flush().unwrap();
+            }
+
+		thread::sleep(time::Duration::new(1, 0));
+        std::process::Command::new("clear").status().unwrap();
+        });
+
+        buffer.fill(0);
+    }
     Ok(())
 }
 
