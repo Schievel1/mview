@@ -1,9 +1,10 @@
+use bitvec::macros::internal::funty::Fundamental;
 use bitvec::prelude::*;
 use clap::{App, Arg};
 use core::mem::size_of;
 use core::time;
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Result, Write};
+use std::io::{self, BufReader, BufWriter, Read, Result, Write, BufRead};
 use std::thread;
 
 const CHUNK_SIZE: usize = 16 * 1024;
@@ -11,6 +12,7 @@ const CHUNK_SIZE: usize = 16 * 1024;
 pub struct Args {
     infile: String,
     outfile: String,
+	config: String,
     chunksize: usize,
 }
 
@@ -26,8 +28,16 @@ impl Args {
                     .help("Write output to a file instead of stdout"),
             )
             .arg(
-                Arg::with_name("chunksize")
+                Arg::with_name("config")
                     .short('c')
+                    .long("config")
+                    .takes_value(true)
+					.required(true)
+                    .help("Definition of the datafields of a chunk"),
+            )
+            .arg(
+                Arg::with_name("chunksize")
+                    .short('b')
                     .long("chunksize")
                     .takes_value(true)
                     .value_parser(clap::value_parser!(usize))
@@ -36,6 +46,7 @@ impl Args {
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
+        let config = matches.value_of("config").unwrap_or_default().to_string();
         let chunksize = matches
             .try_get_one::<usize>("chunksize")
             .unwrap_or_default()
@@ -43,18 +54,23 @@ impl Args {
         Self {
             infile,
             outfile,
+			config,
             chunksize: *chunksize,
         }
     }
 }
 
 fn main() -> Result<()> {
+	// get args
     let args = Args::parse();
     let Args {
         infile,
         outfile,
+		config,
         chunksize,
     } = args;
+
+	// create writer and reader
     let mut reader: Box<dyn Read> = if !infile.is_empty() {
         Box::new(BufReader::new(File::open(infile)?))
     } else {
@@ -66,6 +82,14 @@ fn main() -> Result<()> {
         Box::new(BufWriter::new(io::stdout()))
     };
 
+	// read config
+	let conf_file = File::open(config)?;
+	let conf_reader = BufReader::new(conf_file);
+	let mut config_lines = vec![];
+    for line in conf_reader.lines() {
+		config_lines.push(line?);
+    }
+
     let mut buffer = [0; CHUNK_SIZE];
     loop {
         let num_read = match reader.read(&mut buffer) {
@@ -74,25 +98,13 @@ fn main() -> Result<()> {
             Err(_) => break,
         };
 
-        let config = vec![
-            "Field0:bool1",
-            "Field1:bool1",
-            "Field2:bool1",
-            "Field3:bool1",
-            "Field4:bool1",
-            "Field5:bool1",
-            "Field6:bool1",
-            "Field7:bool1",
-            "Field8:u8",
-            "Field9:u16",
-            "Field10:i32",
-        ];
-
         let s_buf = &buffer[..num_read];
         s_buf.chunks(chunksize).for_each(|c| {
+            thread::sleep(time::Duration::new(1, 0));
+            std::process::Command::new("clear").status().unwrap();
             let c_bits = c.view_bits::<Msb0>();
             let mut bitpos_in_line = 0;
-            for i in config.iter() {
+            for i in config_lines.iter() {
                 let (fieldname, val_type) = i.split_once(':').unwrap();
                 writer.write_fmt(format_args!("{}", fieldname)).unwrap();
                 writer.write_all(b": ").unwrap();
