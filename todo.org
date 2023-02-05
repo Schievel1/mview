@@ -6,3 +6,6 @@
 - [ ] write tests
 - [ ] use separate threads for input and output
 - [ ] print raw data chunk in hex at top of output (as option)
+- [ ] remove debugging thread wait in main
+- [ ] proper error handling (instead of unwrapping everything)
+- [ ] add possibility to display LSB and MSB formatted data (and default to whatever is more common)

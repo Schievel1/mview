@@ -130,7 +130,7 @@ fn main() -> Result<()> {
 
         let s_buf = &buffer[..num_read];
         s_buf.chunks(chunksize).for_each(|c| {
-            thread::sleep(time::Duration::new(1, 0));
+            thread::sleep(time::Duration::new(1, 0)); // this is only here for debugging
             std::process::Command::new("clear").status().unwrap();
             let c_bits = c.view_bits::<Msb0>();
             let mut bitpos_in_line = 0 + bitoffset + offset * size_of::<u8>();
