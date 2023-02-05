@@ -14,6 +14,8 @@ pub struct Args {
     outfile: String,
 	config: String,
     chunksize: usize,
+    offset: usize,
+    bitoffset: usize,
 }
 
 impl Args {
@@ -22,7 +24,7 @@ impl Args {
             .arg(Arg::with_name("infile").help("Read from a file instead of stdin"))
             .arg(
                 Arg::with_name("outfile")
-                    .short('o')
+                    .short('w')
                     .long("outfile")
                     .takes_value(true)
                     .help("Write output to a file instead of stdout"),
@@ -43,6 +45,22 @@ impl Args {
                     .value_parser(clap::value_parser!(usize))
                     .help("flush stdout and restart matching after n bytes"),
             )
+            .arg(
+                Arg::with_name("offset (bytes)")
+                    .short('o')
+                    .long("offset")
+                    .takes_value(true)
+                    .value_parser(clap::value_parser!(usize))
+                    .help("offset in bytes at the start of a chunk before parsing starts"),
+            )
+            .arg(
+                Arg::with_name("offset (bits)")
+                    .short('p')
+                    .long("bitoffset")
+                    .takes_value(true)
+                    .value_parser(clap::value_parser!(usize))
+                    .help("offset in bits at the start of a chunk before parsing starts (added to --offset <bytes>)"),
+            )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
@@ -51,11 +69,21 @@ impl Args {
             .try_get_one::<usize>("chunksize")
             .unwrap_or_default()
             .unwrap();
+        let offset = matches
+            .try_get_one::<usize>("offset")
+            .unwrap_or_default()
+            .unwrap_or(&0);
+        let bitoffset = matches
+            .try_get_one::<usize>("bitoffset")
+            .unwrap_or_default()
+            .unwrap_or(&0);
         Self {
             infile,
             outfile,
 			config,
             chunksize: *chunksize,
+            offset: *offset,
+            bitoffset: *bitoffset,
         }
     }
 }
@@ -68,6 +96,8 @@ fn main() -> Result<()> {
         outfile,
 		config,
         chunksize,
+        offset,
+        bitoffset,
     } = args;
 
 	// create writer and reader
@@ -103,7 +133,7 @@ fn main() -> Result<()> {
             thread::sleep(time::Duration::new(1, 0));
             std::process::Command::new("clear").status().unwrap();
             let c_bits = c.view_bits::<Msb0>();
-            let mut bitpos_in_line = 0;
+            let mut bitpos_in_line = 0 + bitoffset + offset * size_of::<u8>();
             for i in config_lines.iter() {
                 let (fieldname, val_type) = i.split_once(':').unwrap();
                 writer.write_fmt(format_args!("{}", fieldname)).unwrap();

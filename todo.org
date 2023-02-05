@@ -1,7 +1,7 @@
 #+title: Todo
 * TODO
 - [ ] Make a ASCII data field with a length that can be set in the config
-- [ ] allow an offset in the field to be made
+- [X] allow an offset in the chunk to be made
 - [ ] refactor using library
 - [ ] write tests
 - [ ] use separate threads for input and output
