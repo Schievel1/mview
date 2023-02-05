@@ -103,73 +103,247 @@ fn main() -> Result<()> {
                             .unwrap();
                         bitpos_in_line += 1;
                     }
-                    "u8" => {
-                        writer
-                            .write_fmt(format_args!(
-                                "{}\n",
-                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<u8>()]
-                                    .load::<u8>()
-                            ))
-                            .unwrap();
-                        bitpos_in_line += 8;
+                    "bool8" => {
+                        if bitpos_in_line + size_of::<u8>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    (c_bits[bitpos_in_line..bitpos_in_line + size_of::<u8>()]
+                                        .load::<u8>()
+                                        > 0)
+                                ))
+                                .unwrap();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                        bitpos_in_line += size_of::<u8>();
                     }
-                    "i8" => {
-                        writer
-                            .write_fmt(format_args!(
-                                "{}\n",
-                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<i8>()]
-                                    .load::<i8>()
-                            ))
-                            .unwrap();
-                        bitpos_in_line += 8;
+                    "u8" => {
+                        if bitpos_in_line + size_of::<u8>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u8>()]
+                                        .load::<u8>()
+                                ))
+                                .unwrap();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                        bitpos_in_line += size_of::<u8>();
                     }
                     "u16" => {
-                        writer
-                            .write_fmt(format_args!(
-                                "{}\n",
-                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<u16>()]
-                                    .load::<u16>()
-                            ))
-                            .unwrap();
-                        bitpos_in_line += 16;
-                    }
-                    "i16" => {
-                        writer
-                            .write_fmt(format_args!(
-                                "{}\n",
-                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<i16>()]
-                                    .load::<i16>()
-                            ))
-                            .unwrap();
-                        bitpos_in_line += 16;
+                        if bitpos_in_line + size_of::<u16>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u16>()]
+                                        .load::<u16>()
+                                ))
+                                .unwrap();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                        bitpos_in_line += size_of::<u16>();
                     }
                     "u32" => {
-                        writer
-                            .write_fmt(format_args!(
-                                "{}\n",
-                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<u32>()]
-                                    .load::<u32>()
-                            ))
-                            .unwrap();
-                        bitpos_in_line += 32;
+                        if bitpos_in_line + size_of::<u32>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u32>()]
+                                        .load::<u32>()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<u32>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "u64" => {
+                        if bitpos_in_line + size_of::<u64>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u64>()]
+                                        .load::<u64>()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<u64>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "u128" => {
+                        if bitpos_in_line + size_of::<u128>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u128>()]
+                                        .load::<u128>()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<u128>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "i8" => {
+                        if bitpos_in_line + size_of::<u8>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i8>()]
+                                        .load::<i8>()
+                                ))
+                                .unwrap();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                        bitpos_in_line += size_of::<u8>();
+                    }
+                    "i16" => {
+                        if bitpos_in_line + size_of::<i16>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i16>()]
+                                        .load::<i16>()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<i16>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
                     }
                     "i32" => {
-                        writer
-                            .write_fmt(format_args!(
-                                "{}\n",
-                                c_bits[bitpos_in_line..bitpos_in_line + size_of::<i32>()]
-                                    .load::<i32>()
-                            ))
-                            .unwrap();
-                        bitpos_in_line += 32;
+                        if bitpos_in_line + size_of::<i32>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i32>()]
+                                        .load::<i32>()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<i32>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "i64" => {
+                        if bitpos_in_line + size_of::<i64>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i64>()]
+                                        .load::<i64>()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<i64>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "i128" => {
+                        if bitpos_in_line + size_of::<i128>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i128>()]
+                                        .load::<i128>()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<i128>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "f32" => {
+                        if bitpos_in_line + size_of::<f32>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u32>()]
+                                        .load::<u32>()
+                                        .as_f32()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<f32>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "f64" => {
+                        if bitpos_in_line + size_of::<f64>() < c_bits.len() {
+                            writer
+                                .write_fmt(format_args!(
+                                    "{}\n",
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<f64>()]
+                                        .load::<u64>()
+                                        .as_f64()
+                                ))
+                                .unwrap();
+                            bitpos_in_line += size_of::<f64>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
                     }
                     _ => eprintln!("unknown type"),
                 }
                 writer.flush().unwrap();
             }
-
-		thread::sleep(time::Duration::new(1, 0));
-        std::process::Command::new("clear").status().unwrap();
         });
 
         buffer.fill(0);
