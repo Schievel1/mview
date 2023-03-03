@@ -136,6 +136,12 @@ fn main() -> Result<()> {
             let mut bitpos_in_line = 0 + bitoffset + offset * size_of::<u8>();
             for i in config_lines.iter() {
                 let (fieldname, val_type) = i.split_once(':').unwrap();
+                let (fieldname, rest) = i.split_once(':').unwrap();
+                let (val_type, len) = match rest.split_once(':') {
+                    Some(s) => (s.0, s.1.parse().unwrap_or_default()),
+                    None => (rest, 0),
+                };
+                // let len: usize = len.parse().unwrap_or_default();
                 writer.write_fmt(format_args!("{}", fieldname)).unwrap();
                 writer.write_all(b": ").unwrap();
                 match val_type {
@@ -374,6 +380,41 @@ fn main() -> Result<()> {
                                 ))
                                 .unwrap();
                             bitpos_in_line += size_of::<f64>();
+                    "string" | "String" => {
+                        if bitpos_in_line + size_in_bits::<u8>() * len <= c_bits.len() {
+                            let target_int: i128 = 0;
+                            let int_bits = target_int.view_bits::<Msb0>();
+                            for i in 0..len {
+                                int_bits[127-i] = c_bits[bitpos_in_line + len - i]; // copy the payload over
+                            }
+                            if c_bits[bitpos_in_line] { // integer is negative, do the twos complement
+                                   for i in int_bits.into_iter() {
+                                       int_bits[i] = !int_bits[i]; // flip all bits
+                                       target_int + 1; // add 1
+                                   }
+                               }
+                            }
+                            for _i in 0..len {
+                                writer
+                                    .write_fmt(format_args!(
+                                        "{}",
+                                        c_bits
+                                            [bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
+                                            .load::<u8>()
+                                            as char
+                                    ))
+                                    .unwrap();
+                                bitpos_in_line += size_in_bits::<u8>();
+                            }
+                            writer.write_fmt(format_args!("\n")).unwrap();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
                         } else {
                             writer
                                 .write_all(

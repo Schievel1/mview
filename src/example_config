@@ -9,3 +9,4 @@ Field7:bool8
 Field8:u8
 Field9:u16
 Field10:i32
+Field11:String:10
