@@ -4,15 +4,16 @@ use clap::{App, Arg};
 use core::mem::size_of;
 use core::time;
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Result, Write, BufRead};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Result, Write};
 use std::thread;
 
 const CHUNK_SIZE: usize = 16 * 1024;
+const BYTE_TO_BIT: usize = 8;
 
 pub struct Args {
     infile: String,
     outfile: String,
-	config: String,
+    config: String,
     chunksize: usize,
     offset: usize,
     bitoffset: usize,
@@ -80,7 +81,7 @@ impl Args {
         Self {
             infile,
             outfile,
-			config,
+            config,
             chunksize: *chunksize,
             offset: *offset,
             bitoffset: *bitoffset,
@@ -88,19 +89,23 @@ impl Args {
     }
 }
 
+fn size_in_bits<T>() -> usize {
+    size_of::<T>() * BYTE_TO_BIT
+}
+
 fn main() -> Result<()> {
-	// get args
+    // get args
     let args = Args::parse();
     let Args {
         infile,
         outfile,
-		config,
+        config,
         chunksize,
         offset,
         bitoffset,
     } = args;
 
-	// create writer and reader
+    // create writer and reader
     let mut reader: Box<dyn Read> = if !infile.is_empty() {
         Box::new(BufReader::new(File::open(infile)?))
     } else {
@@ -112,12 +117,12 @@ fn main() -> Result<()> {
         Box::new(BufWriter::new(io::stdout()))
     };
 
-	// read config
-	let conf_file = File::open(config)?;
-	let conf_reader = BufReader::new(conf_file);
-	let mut config_lines = vec![];
+    // read config
+    let conf_file = File::open(config)?;
+    let conf_reader = BufReader::new(conf_file);
+    let mut config_lines = vec![];
     for line in conf_reader.lines() {
-		config_lines.push(line?);
+        config_lines.push(line?);
     }
 
     let mut buffer = [0; CHUNK_SIZE];
@@ -133,9 +138,8 @@ fn main() -> Result<()> {
             thread::sleep(time::Duration::new(1, 0)); // this is only here for debugging
             std::process::Command::new("clear").status().unwrap();
             let c_bits = c.view_bits::<Msb0>();
-            let mut bitpos_in_line = 0 + bitoffset + offset * size_of::<u8>();
+            let mut bitpos_in_line = 0 + bitoffset + offset * size_in_bits::<u8>();
             for i in config_lines.iter() {
-                let (fieldname, val_type) = i.split_once(':').unwrap();
                 if i.starts_with('#') { // # is the symbol to comment out a config line
                     continue;
                 }
@@ -155,11 +159,11 @@ fn main() -> Result<()> {
                         bitpos_in_line += 1;
                     }
                     "bool8" => {
-                        if bitpos_in_line + size_of::<u8>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<u8>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    (c_bits[bitpos_in_line..bitpos_in_line + size_of::<u8>()]
+                                    (c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
                                         .load::<u8>()
                                         > 0)
                                 ))
@@ -171,14 +175,14 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
-                        bitpos_in_line += size_of::<u8>();
+                        bitpos_in_line += size_in_bits::<u8>();
                     }
                     "u8" => {
-                        if bitpos_in_line + size_of::<u8>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<u8>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u8>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
                                         .load::<u8>()
                                 ))
                                 .unwrap();
@@ -189,14 +193,14 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
-                        bitpos_in_line += size_of::<u8>();
+                        bitpos_in_line += size_in_bits::<u8>();
                     }
                     "u16" => {
-                        if bitpos_in_line + size_of::<u16>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<u16>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u16>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u16>()]
                                         .load::<u16>()
                                 ))
                                 .unwrap();
@@ -207,18 +211,18 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
-                        bitpos_in_line += size_of::<u16>();
+                        bitpos_in_line += size_in_bits::<u16>();
                     }
                     "u32" => {
-                        if bitpos_in_line + size_of::<u32>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<u32>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u32>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u32>()]
                                         .load::<u32>()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<u32>();
+                            bitpos_in_line += size_in_bits::<u32>();
                         } else {
                             writer
                                 .write_all(
@@ -228,15 +232,15 @@ fn main() -> Result<()> {
                         }
                     }
                     "u64" => {
-                        if bitpos_in_line + size_of::<u64>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<u64>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u64>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u64>()]
                                         .load::<u64>()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<u64>();
+                            bitpos_in_line += size_in_bits::<u64>();
                         } else {
                             writer
                                 .write_all(
@@ -246,15 +250,15 @@ fn main() -> Result<()> {
                         }
                     }
                     "u128" => {
-                        if bitpos_in_line + size_of::<u128>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<u128>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u128>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u128>()]
                                         .load::<u128>()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<u128>();
+                            bitpos_in_line += size_in_bits::<u128>();
                         } else {
                             writer
                                 .write_all(
@@ -264,11 +268,11 @@ fn main() -> Result<()> {
                         }
                     }
                     "i8" => {
-                        if bitpos_in_line + size_of::<u8>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<u8>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i8>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i8>()]
                                         .load::<i8>()
                                 ))
                                 .unwrap();
@@ -279,18 +283,18 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
-                        bitpos_in_line += size_of::<u8>();
+                        bitpos_in_line += size_in_bits::<u8>();
                     }
                     "i16" => {
-                        if bitpos_in_line + size_of::<i16>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<i16>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i16>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i16>()]
                                         .load::<i16>()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<i16>();
+                            bitpos_in_line += size_in_bits::<i16>();
                         } else {
                             writer
                                 .write_all(
@@ -300,15 +304,15 @@ fn main() -> Result<()> {
                         }
                     }
                     "i32" => {
-                        if bitpos_in_line + size_of::<i32>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<i32>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i32>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i32>()]
                                         .load::<i32>()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<i32>();
+                            bitpos_in_line += size_in_bits::<i32>();
                         } else {
                             writer
                                 .write_all(
@@ -318,15 +322,15 @@ fn main() -> Result<()> {
                         }
                     }
                     "i64" => {
-                        if bitpos_in_line + size_of::<i64>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<i64>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i64>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i64>()]
                                         .load::<i64>()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<i64>();
+                            bitpos_in_line += size_in_bits::<i64>();
                         } else {
                             writer
                                 .write_all(
@@ -336,15 +340,15 @@ fn main() -> Result<()> {
                         }
                     }
                     "i128" => {
-                        if bitpos_in_line + size_of::<i128>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<i128>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<i128>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i128>()]
                                         .load::<i128>()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<i128>();
+                            bitpos_in_line += size_in_bits::<i128>();
                         } else {
                             writer
                                 .write_all(
@@ -354,16 +358,16 @@ fn main() -> Result<()> {
                         }
                     }
                     "f32" => {
-                        if bitpos_in_line + size_of::<f32>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<f32>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<u32>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u32>()]
                                         .load::<u32>()
                                         .as_f32()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<f32>();
+                            bitpos_in_line += size_in_bits::<f32>();
                         } else {
                             writer
                                 .write_all(
@@ -373,16 +377,24 @@ fn main() -> Result<()> {
                         }
                     }
                     "f64" => {
-                        if bitpos_in_line + size_of::<f64>() < c_bits.len() {
+                        if bitpos_in_line + size_in_bits::<f64>() <= c_bits.len() {
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_of::<f64>()]
+                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<f64>()]
                                         .load::<u64>()
                                         .as_f64()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_of::<f64>();
+                            bitpos_in_line += size_in_bits::<f64>();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
                     "string" | "String" => {
                         if bitpos_in_line + size_in_bits::<u8>() * len <= c_bits.len() {
                             let target_int: i128 = 0;
