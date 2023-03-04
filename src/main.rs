@@ -430,6 +430,22 @@ fn main() -> Result<()> {
                                 .unwrap();
                         }
                     }
+                    "iarb" => {
+                        if bitpos_in_line + len <= c_bits.len() {
+
+                            for _i in 0..len {
+                                writer
+                                    .write_fmt(format_args!(
+                                        "{}",
+                                        c_bits
+                                            [bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
+                                            .load::<u8>()
+                                            as char
+                                    ))
+                                    .unwrap();
+                                bitpos_in_line += size_in_bits::<u8>();
+                            }
+                            writer.write_fmt(format_args!("\n")).unwrap();
                         } else {
                             writer
                                 .write_all(
