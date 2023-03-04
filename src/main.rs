@@ -136,6 +136,9 @@ fn main() -> Result<()> {
             let mut bitpos_in_line = 0 + bitoffset + offset * size_of::<u8>();
             for i in config_lines.iter() {
                 let (fieldname, val_type) = i.split_once(':').unwrap();
+                if i.starts_with('#') { // # is the symbol to comment out a config line
+                    continue;
+                }
                 let (fieldname, rest) = i.split_once(':').unwrap();
                 let (val_type, len) = match rest.split_once(':') {
                     Some(s) => (s.0, s.1.parse().unwrap_or_default()),
