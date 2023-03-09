@@ -112,6 +112,18 @@ fn size_in_bits<T>() -> usize {
     size_of::<T>() * BYTE_TO_BIT
 }
 
+fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Write>) {
+    if rawhex {
+        writer.write_fmt(format_args!("{:02X?}\n", c)).unwrap();
+    }
+    if rawbin {
+        for b in c {
+            writer.write_fmt(format_args!("{:b} ", b)).unwrap();
+        }
+        writer.write_all(b"\n\n").unwrap();
+    }
+}
+
 fn main() -> Result<()> {
     // get args
     let args = Args::parse();
@@ -158,17 +170,12 @@ fn main() -> Result<()> {
         s_buf.chunks(chunksize).for_each(|c| {
             thread::sleep(time::Duration::new(1, 0)); // this is only here for debugging
             std::process::Command::new("clear").status().unwrap();
-            if rawhex { writer.write_fmt(format_args!("{:02X?}\n", c)).unwrap(); }
-            if rawbin {
-                for b in c {
-                    writer.write_fmt(format_args!("{:b} ", b)).unwrap();
-                }
-                writer.write_all(b"\n\n").unwrap();
-            }
+            print_raws(c, rawhex, rawbin, &mut writer);
             let c_bits = c.view_bits::<Msb0>();
             let mut bitpos_in_line = 0 + bitoffset + offset * size_in_bits::<u8>();
             for i in config_lines.iter() {
-                if i.starts_with('#') { // # is the symbol to comment out a config line
+                if i.starts_with('#') {
+                    // # is the symbol to comment out a config line
                     continue;
                 }
                 let (fieldname, rest) = i.split_once(':').unwrap();
@@ -423,41 +430,6 @@ fn main() -> Result<()> {
                                 .unwrap();
                         }
                     }
-                    // "string" | "String" => {
-                    //     if bitpos_in_line + size_in_bits::<u8>() * len <= c_bits.len() {
-                    //         let target_int: i128 = 0;
-                    //         let int_bits = target_int.view_bits::<Msb0>();
-                    //         for i in 0..len {
-                    //             int_bits[127-i] = c_bits[bitpos_in_line + len - i]; // copy the payload over
-                    //         }
-                    //         if c_bits[bitpos_in_line] { // integer is negative, do the twos complement
-                    //                for i in int_bits.into_iter() {
-                    //                    int_bits[i] = !int_bits[i]; // flip all bits
-                    //                    target_int + 1; // add 1
-                    //                }
-                    //            }
-                    //         }
-                    //         for _i in 0..len {
-                    //             writer
-                    //                 .write_fmt(format_args!(
-                    //                     "{}",
-                    //                     c_bits
-                    //                         [bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
-                    //                         .load::<u8>()
-                    //                         as char
-                    //                 ))
-                    //                 .unwrap();
-                    //             bitpos_in_line += size_in_bits::<u8>();
-                    //         }
-                    //         writer.write_fmt(format_args!("\n")).unwrap();
-                    //     } else {
-                    //         writer
-                    //             .write_all(
-                    //                 b"values size is bigger than what is left of that data chunk\n",
-                    //             )
-                    //             .unwrap();
-                    //     }
-                    // }}
                     "string" | "String" => {
                         if bitpos_in_line + len * size_in_bits::<u8>() <= c_bits.len() {
                             for _i in 0..len {
@@ -481,6 +453,54 @@ fn main() -> Result<()> {
                                 .unwrap();
                         }
                     }
+                    "iarb" => {
+                        if bitpos_in_line + len <= c_bits.len() {
+                            let target_int;
+                            let negative = c_bits[bitpos_in_line + len - 1];
+                            let mut target_slice: [u8; 16] = [0; 16];
+                            let int_bits = target_slice.view_bits_mut::<Lsb0>();
+                            for i in 0..len {
+                                int_bits.set(i, c_bits[bitpos_in_line + i]); // copy the payload over
+                            }
+                            if negative {
+                                // integer is negative, do the twos complement
+                                for i in len..int_bits.len() {
+                                    int_bits.set(i, !int_bits[i]); // flip all bits from the sign bit to end
+                                }
+                                target_int = int_bits.load::<i128>(); // add 1
+                                println!("negative: {:?}", int_bits);
+                            } else {
+                                target_int = int_bits.load::<i128>();
+                            }
+                            writer.write_fmt(format_args!("{}\n", target_int)).unwrap();
+                            bitpos_in_line += len;
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
+                    "uarb" => {
+                        if bitpos_in_line + len <= c_bits.len() {
+                            let target_int;
+                            let mut target_slice: [u8; 16] = [0; 16];
+                            let int_bits = target_slice.view_bits_mut::<Lsb0>();
+                            for i in 0..len {
+                                int_bits.set(i, c_bits[bitpos_in_line + i]); // copy the payload over
+                            }
+                            target_int = int_bits.load::<i128>();
+                            writer.write_fmt(format_args!("{}\n", target_int)).unwrap();
+                            bitpos_in_line += len;
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                    }
                     _ => eprintln!("unknown type"),
                 }
                 writer.flush().unwrap();
@@ -490,4 +510,3 @@ fn main() -> Result<()> {
     }
     Ok(())
 }
-

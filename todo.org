@@ -2,11 +2,13 @@
 * TODO
 - [X] Make a ASCII data field with a length that can be set in the config
 - [X] allow an offset in the chunk to be made
+- [X] allow the possibility to have integers of arbitrary length, positive and negative
 - [ ] refactor using library
 - [ ] write tests
 - [ ] use separate threads for input and output
 - [X] print raw data chunk in hex at top of output (as option)
-- [ ] remove debugging threat wait in main
+- [ ] remove debugging thread wait in main
 - [ ] proper error handling (instead of unwrapping everything)
 - [ ] add possibility to display LSB0 (least significant BIT first) and MSB0 formatted data (and default to whatever is more common) -> MSB0 is more common
 - [ ] add possibility to display Little Endian and Big Endian (BYTES!) formatted data -> Big Endian (Network Bytes order) is more common for mviews use case. (use functions load_le and load_be for this)
+- [ ] write some config syntax checker and information why config is wrong
