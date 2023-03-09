@@ -17,6 +17,8 @@ pub struct Args {
     chunksize: usize,
     offset: usize,
     bitoffset: usize,
+    rawhex: bool,
+    rawbin: bool,
 }
 
 impl Args {
@@ -62,6 +64,19 @@ impl Args {
                     .value_parser(clap::value_parser!(usize))
                     .help("offset in bits at the start of a chunk before parsing starts (added to --offset <bytes>)"),
             )
+            .arg(
+                Arg::with_name("rawhex")
+                    .short('r')
+                    .long("rawhex")
+                    .takes_value(false)
+                    .help("Print raw hexdump of the chunk at top of output"),
+            )
+            .arg(
+                Arg::with_name("rawbin")
+                    .long("rawbin")
+                    .takes_value(false)
+                    .help("Print raw bindump of the chunk at top of output"),
+            )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
@@ -78,6 +93,8 @@ impl Args {
             .try_get_one::<usize>("bitoffset")
             .unwrap_or_default()
             .unwrap_or(&0);
+        let rawhex = matches.is_present("rawhex");
+        let rawbin = matches.is_present("rawbin");
         Self {
             infile,
             outfile,
@@ -85,6 +102,8 @@ impl Args {
             chunksize: *chunksize,
             offset: *offset,
             bitoffset: *bitoffset,
+            rawhex,
+            rawbin,
         }
     }
 }
@@ -103,6 +122,8 @@ fn main() -> Result<()> {
         chunksize,
         offset,
         bitoffset,
+        rawhex,
+        rawbin,
     } = args;
 
     // create writer and reader
@@ -137,6 +158,13 @@ fn main() -> Result<()> {
         s_buf.chunks(chunksize).for_each(|c| {
             thread::sleep(time::Duration::new(1, 0)); // this is only here for debugging
             std::process::Command::new("clear").status().unwrap();
+            if rawhex { writer.write_fmt(format_args!("{:02X?}\n", c)).unwrap(); }
+            if rawbin {
+                for b in c {
+                    writer.write_fmt(format_args!("{:b} ", b)).unwrap();
+                }
+                writer.write_all(b"\n\n").unwrap();
+            }
             let c_bits = c.view_bits::<Msb0>();
             let mut bitpos_in_line = 0 + bitoffset + offset * size_in_bits::<u8>();
             for i in config_lines.iter() {
@@ -395,44 +423,43 @@ fn main() -> Result<()> {
                                 .unwrap();
                         }
                     }
+                    // "string" | "String" => {
+                    //     if bitpos_in_line + size_in_bits::<u8>() * len <= c_bits.len() {
+                    //         let target_int: i128 = 0;
+                    //         let int_bits = target_int.view_bits::<Msb0>();
+                    //         for i in 0..len {
+                    //             int_bits[127-i] = c_bits[bitpos_in_line + len - i]; // copy the payload over
+                    //         }
+                    //         if c_bits[bitpos_in_line] { // integer is negative, do the twos complement
+                    //                for i in int_bits.into_iter() {
+                    //                    int_bits[i] = !int_bits[i]; // flip all bits
+                    //                    target_int + 1; // add 1
+                    //                }
+                    //            }
+                    //         }
+                    //         for _i in 0..len {
+                    //             writer
+                    //                 .write_fmt(format_args!(
+                    //                     "{}",
+                    //                     c_bits
+                    //                         [bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
+                    //                         .load::<u8>()
+                    //                         as char
+                    //                 ))
+                    //                 .unwrap();
+                    //             bitpos_in_line += size_in_bits::<u8>();
+                    //         }
+                    //         writer.write_fmt(format_args!("\n")).unwrap();
+                    //     } else {
+                    //         writer
+                    //             .write_all(
+                    //                 b"values size is bigger than what is left of that data chunk\n",
+                    //             )
+                    //             .unwrap();
+                    //     }
+                    // }}
                     "string" | "String" => {
-                        if bitpos_in_line + size_in_bits::<u8>() * len <= c_bits.len() {
-                            let target_int: i128 = 0;
-                            let int_bits = target_int.view_bits::<Msb0>();
-                            for i in 0..len {
-                                int_bits[127-i] = c_bits[bitpos_in_line + len - i]; // copy the payload over
-                            }
-                            if c_bits[bitpos_in_line] { // integer is negative, do the twos complement
-                                   for i in int_bits.into_iter() {
-                                       int_bits[i] = !int_bits[i]; // flip all bits
-                                       target_int + 1; // add 1
-                                   }
-                               }
-                            }
-                            for _i in 0..len {
-                                writer
-                                    .write_fmt(format_args!(
-                                        "{}",
-                                        c_bits
-                                            [bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
-                                            .load::<u8>()
-                                            as char
-                                    ))
-                                    .unwrap();
-                                bitpos_in_line += size_in_bits::<u8>();
-                            }
-                            writer.write_fmt(format_args!("\n")).unwrap();
-                        } else {
-                            writer
-                                .write_all(
-                                    b"values size is bigger than what is left of that data chunk\n",
-                                )
-                                .unwrap();
-                        }
-                    }
-                    "iarb" => {
-                        if bitpos_in_line + len <= c_bits.len() {
-
+                        if bitpos_in_line + len * size_in_bits::<u8>() <= c_bits.len() {
                             for _i in 0..len {
                                 writer
                                     .write_fmt(format_args!(
@@ -459,17 +486,8 @@ fn main() -> Result<()> {
                 writer.flush().unwrap();
             }
         });
-
         buffer.fill(0);
     }
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn multiply_function() {
-        let result = 5 * 5;
-        assert_eq!(result, 25);
-    }
-}

@@ -6,7 +6,7 @@
 #Field5:bool1
 #Field6:bool1
 #Field7:bool8
-#Field8:u8
+Field8:u8
 #Field9:u16
 #Field10:i32
-Field11:String:10
+Field11:String:4
