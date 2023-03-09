@@ -501,6 +501,34 @@ fn main() -> Result<()> {
                                 .unwrap();
                         }
                     }
+                    "bytegap" => {
+                        if bitpos_in_line + len * size_in_bits::<u8>() <= c_bits.len() {
+                            writer
+                                .write_fmt(format_args!("(gap of {} byte)\n", len))
+                                .unwrap();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                        bitpos_in_line += len * size_in_bits::<u8>();
+                    }
+                    "bitgap" => {
+                        if bitpos_in_line + len <= c_bits.len() {
+                            writer
+                                .write_fmt(format_args!("(gap of {} bit)\n", len))
+                                .unwrap();
+                        } else {
+                            writer
+                                .write_all(
+                                    b"values size is bigger than what is left of that data chunk\n",
+                                )
+                                .unwrap();
+                        }
+                        bitpos_in_line += len;
+                    }
                     _ => eprintln!("unknown type"),
                 }
                 writer.flush().unwrap();
