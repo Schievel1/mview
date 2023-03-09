@@ -118,7 +118,7 @@ fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Write>)
     }
     if rawbin {
         for b in c {
-            writer.write_fmt(format_args!("{:b} ", b)).unwrap();
+            writer.write_fmt(format_args!("{:08b} ", b)).unwrap();
         }
         writer.write_all(b"\n\n").unwrap();
     }
@@ -195,13 +195,12 @@ fn main() -> Result<()> {
                     }
                     "bool8" => {
                         if bitpos_in_line + size_in_bits::<u8>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u8>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    (c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
-                                        .load::<u8>()
-                                        > 0)
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..8].load::<u8>()))
                                 .unwrap();
                         } else {
                             writer
@@ -214,12 +213,12 @@ fn main() -> Result<()> {
                     }
                     "u8" => {
                         if bitpos_in_line + size_in_bits::<u8>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u8>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u8>()]
-                                        .load::<u8>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..8].load::<u8>()))
                                 .unwrap();
                         } else {
                             writer
@@ -232,12 +231,12 @@ fn main() -> Result<()> {
                     }
                     "u16" => {
                         if bitpos_in_line + size_in_bits::<u16>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u16>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u16>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u16>()]
-                                        .load::<u16>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..16].load::<u16>()))
                                 .unwrap();
                         } else {
                             writer
@@ -250,14 +249,13 @@ fn main() -> Result<()> {
                     }
                     "u32" => {
                         if bitpos_in_line + size_in_bits::<u32>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u32>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u32>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u32>()]
-                                        .load::<u32>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..32].load::<u32>()))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<u32>();
                         } else {
                             writer
                                 .write_all(
@@ -265,17 +263,17 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<u32>();
                     }
                     "u64" => {
                         if bitpos_in_line + size_in_bits::<u64>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u64>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u64>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u64>()]
-                                        .load::<u64>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..64].load::<u64>()))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<u64>();
                         } else {
                             writer
                                 .write_all(
@@ -283,17 +281,17 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<u64>();
                     }
                     "u128" => {
                         if bitpos_in_line + size_in_bits::<u128>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u128>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u128>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u128>()]
-                                        .load::<u128>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..128].load::<u128>()))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<u128>();
                         } else {
                             writer
                                 .write_all(
@@ -301,15 +299,16 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<u128>();
                     }
                     "i8" => {
                         if bitpos_in_line + size_in_bits::<u8>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i8>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i8>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i8>()]
-                                        .load::<i8>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..8].load::<i8>()))
                                 .unwrap();
                         } else {
                             writer
@@ -318,18 +317,17 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
-                        bitpos_in_line += size_in_bits::<u8>();
+                        bitpos_in_line += size_in_bits::<i8>();
                     }
                     "i16" => {
                         if bitpos_in_line + size_in_bits::<i16>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i16>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i16>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i16>()]
-                                        .load::<i16>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..16].load::<i16>()))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<i16>();
                         } else {
                             writer
                                 .write_all(
@@ -337,17 +335,17 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<i16>();
                     }
                     "i32" => {
                         if bitpos_in_line + size_in_bits::<i32>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i32>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i32>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i32>()]
-                                        .load::<i32>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..32].load::<i32>()))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<i32>();
                         } else {
                             writer
                                 .write_all(
@@ -355,17 +353,17 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<i32>();
                     }
                     "i64" => {
                         if bitpos_in_line + size_in_bits::<i64>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i64>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i64>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i64>()]
-                                        .load::<i64>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..64].load::<i64>()))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<i64>();
                         } else {
                             writer
                                 .write_all(
@@ -373,17 +371,17 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<i64>();
                     }
                     "i128" => {
                         if bitpos_in_line + size_in_bits::<i128>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i128>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i128>()],
+                            );
                             writer
-                                .write_fmt(format_args!(
-                                    "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<i128>()]
-                                        .load::<i128>()
-                                ))
+                                .write_fmt(format_args!("{}\n", &myslice[0..128].load::<i128>()))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<i128>();
                         } else {
                             writer
                                 .write_all(
@@ -394,15 +392,16 @@ fn main() -> Result<()> {
                     }
                     "f32" => {
                         if bitpos_in_line + size_in_bits::<f32>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<f32>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<f32>()],
+                            );
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<u32>()]
-                                        .load::<u32>()
-                                        .as_f32()
+                                    &myslice[0..32].load::<u32>().as_f32()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<f32>();
                         } else {
                             writer
                                 .write_all(
@@ -410,18 +409,20 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<f32>();
                     }
                     "f64" => {
                         if bitpos_in_line + size_in_bits::<f64>() <= c_bits.len() {
+                            let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<f64>()];
+                            myslice.copy_from_bitslice(
+                                &c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<f64>()],
+                            );
                             writer
                                 .write_fmt(format_args!(
                                     "{}\n",
-                                    c_bits[bitpos_in_line..bitpos_in_line + size_in_bits::<f64>()]
-                                        .load::<u64>()
-                                        .as_f64()
+                                    &myslice[0..64].load::<u64>().as_f64()
                                 ))
                                 .unwrap();
-                            bitpos_in_line += size_in_bits::<f64>();
                         } else {
                             writer
                                 .write_all(
@@ -429,6 +430,7 @@ fn main() -> Result<()> {
                                 )
                                 .unwrap();
                         }
+                        bitpos_in_line += size_in_bits::<f64>();
                     }
                     "string" | "String" => {
                         if bitpos_in_line + len * size_in_bits::<u8>() <= c_bits.len() {
@@ -468,7 +470,6 @@ fn main() -> Result<()> {
                                     int_bits.set(i, !int_bits[i]); // flip all bits from the sign bit to end
                                 }
                                 target_int = int_bits.load::<i128>(); // add 1
-                                println!("negative: {:?}", int_bits);
                             } else {
                                 target_int = int_bits.load::<i128>();
                             }
