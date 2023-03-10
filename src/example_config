@@ -7,7 +7,7 @@
 #Field6:bool1
 #Field7:bool1
 Fieldbool8:bool8
-Bytegap:bytegap:1
+Bytegap:bytegap:2
 Bitgap:bitgap:4
 Field8:u8
 Field9:u16

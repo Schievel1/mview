@@ -1,7 +1,53 @@
 use crate::size_in_bits;
-use bitvec::macros::internal::funty::Fundamental;
+use bitvec::macros::internal::funty::{Fundamental, Integral};
 use bitvec::prelude::*;
 use std::io::{Result, Write};
+
+pub fn write_integer_data<T>(
+    bitpos_in_chunk: &usize,
+    c_bits: &BitSlice<u8, Msb0>,
+    writer: &mut Box<dyn Write>,
+) -> usize
+where
+    T: Integral,
+{
+    // returns the size of the written type in bits
+    if *bitpos_in_chunk + size_in_bits::<T>() <= c_bits.len() {
+        let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<T>()];
+        myslice
+            .copy_from_bitslice(&c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<T>()]);
+        writer
+            .write_fmt(format_args!(
+                "{}\n",
+                &myslice[0..size_in_bits::<T>()].load::<T>()
+            ))
+            .unwrap();
+    } else {
+        writer
+            .write_all(b"values size is bigger than what is left of that data chunk\n")
+            .unwrap();
+    }
+    size_in_bits::<T>()
+}
+
+fn write_gap(
+    bitpos_in_chunk: &usize,
+    c_bits: &BitSlice<u8, Msb0>,
+    writer: &mut Box<dyn Write>,
+    len: usize,
+    typelen: usize,
+) -> usize {
+    if *bitpos_in_chunk + len * typelen <= c_bits.len() {
+        writer
+            .write_fmt(format_args!("(gap of {} bit)\n", len * typelen))
+            .unwrap();
+    } else {
+        writer
+            .write_all(b"values size is bigger than what is left of that data chunk\n")
+            .unwrap();
+    }
+    typelen * len
+}
 
 pub fn write_line(
     conf_line: &String,
@@ -40,165 +86,16 @@ pub fn write_line(
             }
             *bitpos_in_chunk += size_in_bits::<u8>();
         }
-        "u8" => {
-            if *bitpos_in_chunk + size_in_bits::<u8>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u8>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<u8>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..8].load::<u8>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<u8>();
-        }
-        "u16" => {
-            if *bitpos_in_chunk + size_in_bits::<u16>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u16>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<u16>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..16].load::<u16>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<u16>();
-        }
-        "u32" => {
-            if *bitpos_in_chunk + size_in_bits::<u32>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u32>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<u32>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..32].load::<u32>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<u32>();
-        }
-        "u64" => {
-            if *bitpos_in_chunk + size_in_bits::<u64>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u64>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<u64>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..64].load::<u64>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<u64>();
-        }
-        "u128" => {
-            if *bitpos_in_chunk + size_in_bits::<u128>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<u128>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<u128>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..128].load::<u128>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<u128>();
-        }
-        "i8" => {
-            if *bitpos_in_chunk + size_in_bits::<u8>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i8>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<i8>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..8].load::<i8>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<i8>();
-        }
-        "i16" => {
-            if *bitpos_in_chunk + size_in_bits::<i16>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i16>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<i16>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..16].load::<i16>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<i16>();
-        }
-        "i32" => {
-            if *bitpos_in_chunk + size_in_bits::<i32>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i32>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<i32>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..32].load::<i32>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<i32>();
-        }
-        "i64" => {
-            if *bitpos_in_chunk + size_in_bits::<i64>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i64>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<i64>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..64].load::<i64>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += size_in_bits::<i64>();
-        }
-        "i128" => {
-            if *bitpos_in_chunk + size_in_bits::<i128>() <= c_bits.len() {
-                let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<i128>()];
-                myslice.copy_from_bitslice(
-                    &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<i128>()],
-                );
-                writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..128].load::<i128>()))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-        }
+        "u8" => *bitpos_in_chunk += write_integer_data::<u8>(bitpos_in_chunk, c_bits, writer),
+        "u16" => *bitpos_in_chunk += write_integer_data::<u16>(bitpos_in_chunk, c_bits, writer),
+        "u32" => *bitpos_in_chunk += write_integer_data::<u32>(bitpos_in_chunk, c_bits, writer),
+        "u64" => *bitpos_in_chunk += write_integer_data::<u64>(bitpos_in_chunk, c_bits, writer),
+        "u128" => *bitpos_in_chunk += write_integer_data::<u128>(bitpos_in_chunk, c_bits, writer),
+        "i8" => *bitpos_in_chunk += write_integer_data::<i8>(bitpos_in_chunk, c_bits, writer),
+        "i16" => *bitpos_in_chunk += write_integer_data::<i16>(bitpos_in_chunk, c_bits, writer),
+        "i32" => *bitpos_in_chunk += write_integer_data::<i32>(bitpos_in_chunk, c_bits, writer),
+        "i64" => *bitpos_in_chunk += write_integer_data::<i64>(bitpos_in_chunk, c_bits, writer),
+        "i128" => *bitpos_in_chunk += write_integer_data::<i128>(bitpos_in_chunk, c_bits, writer),
         "f32" => {
             if *bitpos_in_chunk + size_in_bits::<f32>() <= c_bits.len() {
                 let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<f32>()];
@@ -294,28 +191,10 @@ pub fn write_line(
             }
         }
         "bytegap" => {
-            if *bitpos_in_chunk + len * size_in_bits::<u8>() <= c_bits.len() {
-                writer
-                    .write_fmt(format_args!("(gap of {} byte)\n", len))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += len * size_in_bits::<u8>();
+            *bitpos_in_chunk += write_gap(&bitpos_in_chunk, c_bits, writer, len, 8);
         }
         "bitgap" => {
-            if *bitpos_in_chunk + len <= c_bits.len() {
-                writer
-                    .write_fmt(format_args!("(gap of {} bit)\n", len))
-                    .unwrap();
-            } else {
-                writer
-                    .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
-            }
-            *bitpos_in_chunk += len;
+            *bitpos_in_chunk += write_gap(&bitpos_in_chunk, c_bits, writer, len, 1);
         }
         _ => eprintln!("unknown type"),
     }
