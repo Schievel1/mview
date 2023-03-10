@@ -1,7 +1,77 @@
+use crate::print_raws;
 use crate::size_in_bits;
 use bitvec::macros::internal::funty::{Fundamental, Integral};
 use bitvec::prelude::*;
-use std::io::{Result, Write};
+use core::time;
+use crossbeam::channel::Receiver;
+use crossterm::{
+    cursor, execute,
+    terminal::{Clear, ClearType},
+};
+use std::fs::File;
+use std::io::{self, BufWriter, Result, Write};
+use std::thread;
+
+pub fn write_loop(
+    outfile: &str,
+    rawhex: bool,
+    rawbin: bool,
+    chunksize: usize,
+    offset: usize,
+    bitoffset: usize,
+    write_rx: Receiver<Vec<u8>>,
+    config_lines: &[String],
+) -> Result<()> {
+    // break what is read into chunks and apply config lines as masked to it
+    let is_stdout = outfile.is_empty();
+    let mut writer: Box<dyn Write> = if !is_stdout {
+        Box::new(BufWriter::new(File::create(outfile)?))
+    } else {
+        Box::new(BufWriter::new(io::stdout()))
+    };
+    let mut first_run = true;
+    loop {
+        let buffer = write_rx.recv().unwrap();
+        if buffer.is_empty() {
+            break;
+        }
+        let _: Result<()> = buffer.chunks(chunksize).try_for_each(|chunk| {
+            let mut stdout = io::stdout();
+            if is_stdout {
+                execute!(stdout, cursor::Hide,)?;
+            }
+            if is_stdout && !first_run {
+                let mut extra_lines = 0;
+                if rawbin || rawhex {
+                    extra_lines += 1
+                };
+                if rawhex {
+                    extra_lines += 1
+                };
+                if rawbin {
+                    extra_lines += 1
+                };
+                execute!(
+                    stdout,
+                    cursor::MoveUp(config_lines.len() as u16 + extra_lines),
+                    cursor::MoveToColumn(0),
+                    Clear(ClearType::CurrentLine),
+                    Clear(ClearType::FromCursorDown),
+                    cursor::Show,
+                )?;
+            }
+            print_raws(chunk, rawhex, rawbin, &mut writer);
+            let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
+            for conf_line in config_lines.iter() {
+                write_line(conf_line, chunk, &mut bitpos_in_chunk, &mut writer)?;
+            }
+            thread::sleep(time::Duration::new(1, 0));
+            first_run = false;
+            Ok(())
+        });
+    }
+    Ok(())
+}
 
 pub fn write_integer_data<T>(
     bitpos_in_chunk: &usize,
@@ -47,11 +117,10 @@ fn write_gap(
             .unwrap();
     }
     typelen * len
-
 }
 
 pub fn write_line(
-    conf_line: &String,
+    conf_line: &str,
     c: &[u8],
     bitpos_in_chunk: &mut usize,
     writer: &mut Box<dyn Write>,
@@ -177,13 +246,12 @@ pub fn write_line(
         }
         "uarb" => {
             if *bitpos_in_chunk + len <= c_bits.len() {
-                let target_int;
                 let mut target_slice: [u8; 16] = [0; 16];
                 let int_bits = target_slice.view_bits_mut::<Lsb0>();
                 for i in 0..len {
                     int_bits.set(i, c_bits[*bitpos_in_chunk + i]); // copy the payload over
                 }
-                target_int = int_bits.load::<i128>();
+                let target_int = int_bits.load::<i128>();
                 writer.write_fmt(format_args!("{}\n", target_int)).unwrap();
                 *bitpos_in_chunk += len;
             } else {
@@ -193,10 +261,10 @@ pub fn write_line(
             }
         }
         "bytegap" => {
-            *bitpos_in_chunk += write_gap(&bitpos_in_chunk, c_bits, writer, len, 8);
+            *bitpos_in_chunk += write_gap(bitpos_in_chunk, c_bits, writer, len, 8);
         }
         "bitgap" => {
-            *bitpos_in_chunk += write_gap(&bitpos_in_chunk, c_bits, writer, len, 1);
+            *bitpos_in_chunk += write_gap(bitpos_in_chunk, c_bits, writer, len, 1);
         }
         _ => eprintln!("unknown type"),
     }

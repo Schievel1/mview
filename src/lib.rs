@@ -3,6 +3,7 @@ use std::mem::size_of;
 
 pub mod args;
 pub mod write;
+pub mod read;
 
 pub const MAX_READ_SIZE: usize = 16 * 1024;
 pub const BYTE_TO_BIT: usize = 8;
