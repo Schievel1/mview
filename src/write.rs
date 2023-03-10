@@ -63,7 +63,8 @@ pub fn write_line(
     };
     writer.write_fmt(format_args!("{}", fieldname)).unwrap();
     writer.write_all(b": ").unwrap();
-    match val_type {
+    let val_type = val_type.to_lowercase(); // don't care about type
+    match val_type.as_str() {
         "bool1" => {
             writer
                 .write_fmt(format_args!("{}\n", c_bits[*bitpos_in_chunk]))
@@ -128,7 +129,7 @@ pub fn write_line(
             }
             *bitpos_in_chunk += size_in_bits::<f64>();
         }
-        "string" | "String" => {
+        "string" => {
             if *bitpos_in_chunk + len * size_in_bits::<u8>() <= c_bits.len() {
                 for _i in 0..len {
                     writer
