@@ -5,7 +5,7 @@
 - [X] allow the possibility to have integers of arbitrary length, positive and negative
 - [X] refactor using library
 - [ ] write tests
-- [ ] use separate threads for input and output
+- [X] use separate threads for input and output
 - [X] print raw data chunk in hex at top of output (as option)
 - [ ] remove debugging thread wait in main
 - [ ] proper error handling (instead of unwrapping everything)
@@ -14,3 +14,4 @@
   for some reason it does not make a differnce if I call load_be oder load_le, I have to do further research on this
 - [ ] write some config syntax checker and information why config is wrong
 - [X] don't care if its bool, Bool, BOOL or even bOoL
+- [X] add option to display timestamp of the last printed chunk
