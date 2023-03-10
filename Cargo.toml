@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 bitvec = "1.0.1"
 clap = "3.2.5"
+crossterm = "0.26.1"

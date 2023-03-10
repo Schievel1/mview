@@ -47,6 +47,7 @@ fn write_gap(
             .unwrap();
     }
     typelen * len
+
 }
 
 pub fn write_line(
