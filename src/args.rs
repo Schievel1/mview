@@ -74,7 +74,7 @@ impl Args {
         let chunksize = matches
             .try_get_one::<usize>("chunksize")
             .unwrap_or_default()
-            .unwrap();
+            .unwrap_or(&0);
         let offset = matches
             .try_get_one::<usize>("offset")
             .unwrap_or_default()

@@ -22,3 +22,34 @@ pub fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Wri
         writer.write_all(b"\n\n").unwrap();
     }
 }
+
+pub fn chunksize_by_config(config_lines: &Vec<String>) -> usize {
+    let mut bitlength = 0;
+    for conf_line in config_lines.iter() {
+        if conf_line.starts_with('#') {
+            // # is the symbol to comment out a config line
+            continue;
+        }
+
+        let (_, rest) = conf_line.split_once(':').unwrap();
+        let (val_type, len) = match rest.split_once(':') {
+            Some(s) => (s.0, s.1.parse().unwrap_or_default()),
+            None => (rest, 0),
+        };
+
+        let val_type = val_type.to_lowercase(); // don't care about type
+        match val_type.as_str() {
+            "bool1" => bitlength += 1,
+            "bool8" | "u8" | "i8" => bitlength += size_in_bits::<u8>(),
+            "u16" | "i16" => bitlength += size_in_bits::<u16>(),
+            "u32" | "i32" | "f32" => bitlength += size_in_bits::<u32>(),
+            "u64" | "i64" | "f64" => bitlength += size_in_bits::<u64>(),
+            "u128" | "i128" => bitlength += size_in_bits::<u128>(),
+            "string" | "bytegap" => bitlength += len * size_in_bits::<u8>(),
+            "iarb" | "uarb" => bitlength += len,
+            "bitgap" => bitlength += len,
+            _ => eprintln!("unknown type"),
+        }
+    }
+    bitlength
+}

@@ -12,7 +12,7 @@ fn main() -> Result<()> {
         infile,
         outfile,
         config,
-        chunksize,
+        mut chunksize,
         offset,
         bitoffset,
         rawhex,
@@ -34,11 +34,17 @@ fn main() -> Result<()> {
     // read config
     let conf_file = File::open(config)?;
     let conf_reader = BufReader::new(conf_file);
-    let mut config_lines = vec![];
-    for line in conf_reader.lines() {
-        config_lines.push(line?);
+    let config_lines: Vec<String> = conf_reader.lines().collect::<Result<_>>().unwrap();
+    let chunksize_from_config = chunksize_by_config(&config_lines); // bits!
+    if chunksize < 1 { // bytes!
+        // if the chunksize from arguments is invalid, get the config chunks
+        chunksize =  chunksize_from_config / 8;
     }
-
+    if chunksize_from_config % size_in_bits::<u8>() > 0 {
+        eprintln!("WARNING: Size of config is {} bytes and {} bits. The chunksize is {}.
+this means that some bits will not be considered in the config as chunksize does not match the config size", chunksize_from_config / 8, chunksize_from_config % 8, chunksize)
+    }
+    thread::sleep(time::Duration::new(1, 0));
     let mut buffer = [0; MAX_READ_SIZE];
     loop {
         // read input
@@ -69,3 +75,4 @@ fn main() -> Result<()> {
     }
     Ok(())
 }
+
