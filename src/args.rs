@@ -9,6 +9,7 @@ pub struct Args {
     pub bitoffset: usize,
     pub rawhex: bool,
     pub rawbin: bool,
+    pub pause: u64,
 }
 
 impl Args {
@@ -48,7 +49,7 @@ impl Args {
             )
             .arg(
                 Arg::with_name("offset (bits)")
-                    .short('p')
+                    .short('s')
                     .long("bitoffset")
                     .takes_value(true)
                     .value_parser(clap::value_parser!(usize))
@@ -66,6 +67,14 @@ impl Args {
                     .long("rawbin")
                     .takes_value(false)
                     .help("Print raw bindump of the chunk at top of output"),
+            )
+            .arg(
+                Arg::with_name("pause")
+                    .long("pause")
+                    .short('p')
+                    .takes_value(true)
+                    .value_parser(clap::value_parser!(u64))
+                    .help("Add a pause (in ms) between the output of chunks."),
             )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
@@ -85,6 +94,10 @@ impl Args {
             .unwrap_or(&0);
         let rawhex = matches.is_present("rawhex");
         let rawbin = matches.is_present("rawbin");
+        let pause = matches
+            .try_get_one::<u64>("pause")
+            .unwrap_or_default()
+            .unwrap_or(&0);
         Self {
             infile,
             outfile,
@@ -94,6 +107,7 @@ impl Args {
             bitoffset: *bitoffset,
             rawhex,
             rawbin,
+            pause: *pause,
         }
     }
 }

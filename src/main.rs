@@ -17,14 +17,10 @@ fn main() -> Result<()> {
         bitoffset,
         rawhex,
         rawbin,
+		pause,
     } = args;
 
     let (write_tx, write_rx) = bounded(1024);
-
-    // read config
-    // let conf_file = File::open(config)?;
-    // let conf_reader = BufReader::new(File::open(config)?);
-    // let config_lines: Vec<String> = BufReader::new(File::open(config)?).lines().collect::<Result<_>>().unwrap();
     let config_lines = BufReader::new(File::open(config)?)
         .lines()
         .collect::<Result<Vec<String>>>()
@@ -39,7 +35,7 @@ fn main() -> Result<()> {
         chunksize = chunksize_from_config / 8;
     }
     if chunksize_from_config % size_in_bits::<u8>() > 0 {
-        eprintln!("{}: Size of config is {} bytes and {} bits. The chunksize is {}.
+        eprintln!("{}: Size of config is {} bytes and {} bits. The chunksize is {} bytes.
 this means that some fields in the config will not be considered in the output as chunksize does not match sum of the fields sizes in config.", style::style("WARNING").with(Color::Yellow).bold(), chunksize_from_config / 8, chunksize_from_config % 8, chunksize)
     }
 
@@ -54,6 +50,7 @@ this means that some fields in the config will not be considered in the output a
             bitoffset,
             write_rx,
             &config_lines,
+			pause,
         )
     });
     let read_io_result = read_handle.join().unwrap();

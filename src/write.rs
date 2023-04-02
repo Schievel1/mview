@@ -21,6 +21,7 @@ pub fn write_loop(
     bitoffset: usize,
     write_rx: Receiver<Vec<u8>>,
     config_lines: &[String],
+    pause: u64,
 ) -> Result<()> {
     // break what is read into chunks and apply config lines as masked to it
     let is_stdout = outfile.is_empty();
@@ -65,7 +66,7 @@ pub fn write_loop(
             for conf_line in config_lines.iter() {
                 write_line(conf_line, chunk, &mut bitpos_in_chunk, &mut writer)?;
             }
-            thread::sleep(time::Duration::new(1, 0));
+            thread::sleep(time::Duration::from_millis(pause));
             first_run = false;
             Ok(())
         });
