@@ -15,3 +15,4 @@
 - [ ] write some config syntax checker and information why config is wrong
 - [X] don't care if its bool, Bool, BOOL or even bOoL
 - [ ] add option to display timestamp of the last printed chunk
+- [ ] add option to display statistics (number of chunks, number of bytes received)

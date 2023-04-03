@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     } = args;
 
     let (write_tx, write_rx) = bounded(1024);
-    let config_lines = BufReader::new(File::open(config)?)
+    let config_lines: Vec<String> = BufReader::new(File::open(config)?)
         .lines()
         .collect::<Result<Vec<String>>>()
         .unwrap()
@@ -36,7 +36,7 @@ fn main() -> Result<()> {
     }
     if chunksize_from_config % size_in_bits::<u8>() > 0 {
         eprintln!("{}: Size of config is {} bytes and {} bits. The chunksize is {} bytes.
-this means that some fields in the config will not be considered in the output as chunksize does not match sum of the fields sizes in config.", style::style("WARNING").with(Color::Yellow).bold(), chunksize_from_config / 8, chunksize_from_config % 8, chunksize)
+this means that some fields in the config will not be considered in the output because chunksize does not match sum of the fields sizes in config.", style::style("WARNING").with(Color::Yellow).bold(), chunksize_from_config / 8, chunksize_from_config % 8, chunksize)
     }
 
     let read_handle = thread::spawn(move || read::read_loop(&infile, write_tx));

@@ -2,8 +2,8 @@ use std::io::Write;
 use std::mem::size_of;
 
 pub mod args;
-pub mod write;
 pub mod read;
+pub mod write;
 
 pub const MAX_READ_SIZE: usize = 16 * 1024;
 pub const BYTE_TO_BIT: usize = 8;
@@ -24,7 +24,8 @@ pub fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Wri
     }
 }
 
-pub fn chunksize_by_config(config_lines: &Vec<String>) -> usize {
+// calculate the size of a chunk using the config, returns bits!
+pub fn chunksize_by_config(config_lines: &[String]) -> usize {
     let mut bitlength = 0;
     for conf_line in config_lines.iter() {
         let (_, rest) = conf_line.split_once(':').unwrap();
@@ -48,4 +49,188 @@ pub fn chunksize_by_config(config_lines: &Vec<String>) -> usize {
         }
     }
     bitlength
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::chunksize_by_config;
+
+    #[test]
+    fn test_chunksize_by_config_bool1() {
+        let config = "Field:bool1";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 1);
+    }
+    #[test]
+    fn test_chunksize_by_config_bool8() {
+        let config = "Field:bool8";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 8);
+    }
+    #[test]
+    fn test_chunksize_by_config_u8() {
+        let config = "Field:u8";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 8);
+    }
+    #[test]
+    fn test_chunksize_by_config_i8() {
+        let config = "Field:i8";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 8);
+    }
+    #[test]
+    fn test_chunksize_by_config_u16() {
+        let config = "Field:u16";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 16);
+    }
+    #[test]
+    fn test_chunksize_by_config_i16() {
+        let config = "Field:i16";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 16);
+    }
+    #[test]
+    fn test_chunksize_by_config_u32() {
+        let config = "Field:u32";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 32);
+    }
+    #[test]
+    fn test_chunksize_by_config_i32() {
+        let config = "Field:i32";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 32);
+    }
+    #[test]
+    fn test_chunksize_by_config_f32() {
+        let config = "Field:f32";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 32);
+    }
+    #[test]
+    fn test_chunksize_by_config_u64() {
+        let config = "Field:u64";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 64);
+    }
+    #[test]
+    fn test_chunksize_by_config_i64() {
+        let config = "Field:i64";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 64);
+    }
+    #[test]
+    fn test_chunksize_by_config_f64() {
+        let config = "Field:f64";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 64);
+    }
+    #[test]
+    fn test_chunksize_by_config_u128() {
+        let config = "Field:u128";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 128);
+    }
+    #[test]
+    fn test_chunksize_by_config_i128() {
+        let config = "Field:i128";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 128);
+    }
+    #[test]
+    fn test_chunksize_by_config_string4() {
+        let config = "Field:string:4";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), (4 * 8));
+    }
+    #[test]
+    fn test_chunksize_by_config_string8() {
+        let config = "Field:string:8";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), (8 * 8));
+    }
+    #[test]
+    fn test_chunksize_by_config_stringlong() {
+        let config = "Field:string:32000";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), (32000 * 8));
+    }
+    #[test]
+    fn test_chunksize_by_config_bytegap4() {
+        let config = "Field:bytegap:4";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), (4 * 8));
+    }
+    #[test]
+    fn test_chunksize_by_config_bytegap8() {
+        let config = "Field:bytegap:8";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), (8 * 8));
+    }
+    #[test]
+    fn test_chunksize_by_config_bytegaplong() {
+        let config = "Field:bytegap:32000";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), (32000 * 8));
+    }
+    #[test]
+    fn test_chunksize_by_config_bitgap4() {
+        let config = "Field:bitgap:4";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 4);
+    }
+    #[test]
+    fn test_chunksize_by_config_bitgap8() {
+        let config = "Field:bitgap:8";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 8);
+    }
+    #[test]
+    fn test_chunksize_by_config_bitgaplong() {
+        let config = "Field:bitgap:32000";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 32000);
+    }
+    #[test]
+    fn test_chunksize_by_config_iarb() {
+        let config = "Field:iarb:7";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 7);
+    }
+    #[test]
+    fn test_chunksize_by_config_uarb() {
+        let config = "Field:uarb:7";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 7);
+    }
+    #[test]
+    fn test_chunksize_by_config_case_insensitive() {
+        let config = "Field:bOoL8";
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 8);
+    }
+    #[test]
+    fn test_chunksize_by_config_sum() {
+        let config = "Field0(bool1):bool1
+Field1(bool1):bool1
+Field2(bool1):bool1
+Field3(bool1):bool1
+Field4(bool1):bool1
+Field5(bool1):bool1
+Field6(bool1):bool1
+Field7(bool1):bool1
+Field8(bool8):bool8
+Two_Bytegap(bytegap2):bytegap:2
+Four_Bitgap(bitgap4):bitgap:4
+Field9(u8):u8
+Field10(u16):u16
+Field11(i32):i32
+Field12(String4):String:4
+Field13(iarb7):iarb:7
+Field14(uarb4):uarb:4"; // should sum up to 135 bits
+        let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
+        assert_eq!(chunksize_by_config(&config_lines), 135);
+    }
 }
