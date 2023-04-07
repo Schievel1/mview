@@ -1,6 +1,7 @@
 use crate::format_number;
 use crate::parse_config_line;
 use crate::print_raws;
+use crate::print_timestamp;
 use crate::size_in_bits;
 use crate::Format;
 use bitvec::macros::internal::funty::{Fundamental, Integral};
@@ -25,7 +26,8 @@ pub fn write_loop(
     write_rx: Receiver<Vec<u8>>,
     config_lines: &[String],
     pause: u64,
-	little_endian: bool,
+    little_endian: bool,
+    timestamp: bool,
 ) -> Result<()> {
     // break what is read into chunks and apply config lines as masked to it
     let is_stdout = outfile.is_empty();
@@ -47,17 +49,18 @@ pub fn write_loop(
             }
             if is_stdout && !first_run {
                 let mut extra_lines = 0;
-                if rawbin || rawhex {
-                    extra_lines += 1
-                };
-                if rawhex {
-                    extra_lines += 1
-                };
-                if rawbin {
+				// this extra_lines function is messy TODO use safe coursor position
+                match (rawbin, rawhex) {
+                    (true, true) => extra_lines += 3,
+                    (false, true) | (true, false) => extra_lines += 2,
+                    _ => (),
+                }
+                if timestamp {
                     extra_lines += 1
                 };
                 execute!(
                     stdout,
+                    // TODO use safeposition() instead
                     cursor::MoveUp(config_lines.len() as u16 + extra_lines),
                     cursor::MoveToColumn(0),
                     Clear(ClearType::CurrentLine),
@@ -65,13 +68,22 @@ pub fn write_loop(
                     cursor::Show,
                 )?;
             }
+            if timestamp {
+                print_timestamp(&mut writer);
+            }
             print_raws(chunk, rawhex, rawbin, &mut writer);
             let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
             // strategy: for every config line we call write_line().
             // write_line() will parse the config line, then get the size of the data type it
             // found it that line from the chunk, print it out and advance bitpos_in_chunk accordingly
             for conf_line in config_lines.iter() {
-                write_line(conf_line, chunk, &mut bitpos_in_chunk, &mut writer, little_endian)?;
+                write_line(
+                    conf_line,
+                    chunk,
+                    &mut bitpos_in_chunk,
+                    &mut writer,
+                    little_endian,
+                )?;
             }
             thread::sleep(time::Duration::from_millis(pause));
             first_run = false;
@@ -143,7 +155,7 @@ pub fn write_line(
     chunk: &[u8],
     bitpos_in_chunk: &mut usize,
     writer: &mut Box<dyn Write>,
-	little_endian: bool,
+    little_endian: bool,
 ) -> Result<()> {
     let c_bits = chunk.view_bits::<Msb0>();
     let (fieldname, val_type, form, len) = parse_config_line(conf_line);
@@ -173,31 +185,45 @@ pub fn write_line(
             }
             *bitpos_in_chunk += size_in_bits::<u8>();
         }
-        "u8" => *bitpos_in_chunk += write_integer_data::<u8>(bitpos_in_chunk, c_bits, writer, form, little_endian),
+        "u8" => {
+            *bitpos_in_chunk +=
+                write_integer_data::<u8>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+        }
         "u16" => {
-            *bitpos_in_chunk += write_integer_data::<u16>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<u16>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
         "u32" => {
-            *bitpos_in_chunk += write_integer_data::<u32>(bitpos_in_chunk, c_bits, writer, form,little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<u32>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
         "u64" => {
-            *bitpos_in_chunk += write_integer_data::<u64>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<u64>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
         "u128" => {
-            *bitpos_in_chunk += write_integer_data::<u128>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<u128>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
-        "i8" => *bitpos_in_chunk += write_integer_data::<i8>(bitpos_in_chunk, c_bits, writer, form, little_endian),
+        "i8" => {
+            *bitpos_in_chunk +=
+                write_integer_data::<i8>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+        }
         "i16" => {
-            *bitpos_in_chunk += write_integer_data::<i16>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<i16>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
         "i32" => {
-            *bitpos_in_chunk += write_integer_data::<i32>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<i32>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
         "i64" => {
-            *bitpos_in_chunk += write_integer_data::<i64>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<i64>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
         "i128" => {
-            *bitpos_in_chunk += write_integer_data::<i128>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+            *bitpos_in_chunk +=
+                write_integer_data::<i128>(bitpos_in_chunk, c_bits, writer, form, little_endian)
         }
         "f32" => {
             if *bitpos_in_chunk + size_in_bits::<f32>() <= c_bits.len() {

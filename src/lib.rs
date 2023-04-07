@@ -50,6 +50,10 @@ pub fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Wri
     }
 }
 
+pub fn print_timestamp(writer: &mut Box<dyn Write>) {
+    writer.write_fmt(format_args!("{}\n",chrono::offset::Local::now())).unwrap()
+}
+
 pub fn parse_config_line(conf_line: &str) -> (&str, &str, Format, usize) {
     let (fieldname, rest) = conf_line.split_once(':').unwrap();
     let (val_type, rest) = match rest.split_once(':') {

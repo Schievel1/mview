@@ -14,7 +14,7 @@
   for some reason it does not make a differnce if I call load_be oder load_le, I have to do further research on this
 - [ ] write some config syntax checker and information why config is wrong
 - [X] don't care if its bool, Bool, BOOL or even bOoL
-- [ ] add option to display timestamp of the last printed chunk
+- [X] add option to display timestamp of the last printed chunk
 - [ ] add option to display statistics (number of chunks, number of bytes received)
 - [X] add option to display numbers in hex, bin
   use :b, :binary (for binary) or :h, :hex or :hexadecimal (for hex) as suffix of the line of an integer in config

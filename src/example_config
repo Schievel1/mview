@@ -1,9 +1,4 @@
-Field1:u16:h
-Field2:u16:h
-Field3:u32:h
-Field4:u16:b
-Field5:u16:b
-Field6:u32:b
+Field1:u8:h
 # Field0(bool1):bool1
 # Field1(bool1):bool1
 # Field2(bool1):bool1

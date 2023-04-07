@@ -11,6 +11,7 @@ pub struct Args {
     pub rawbin: bool,
     pub pause: u64,
     pub little_endian: bool,
+    pub timestamp: bool,
 }
 
 impl Args {
@@ -81,7 +82,14 @@ impl Args {
                 Arg::with_name("little endian")
                     .long("le")
                     .takes_value(false)
-                    .help("Interpret integers as little endian (default is big endian)"),
+                    .help("Interpret integers as little endian (default is big endian)."),
+            )
+            .arg(
+                Arg::with_name("timestamp")
+                    .long("timestamp")
+                    .short('t')
+                    .takes_value(false)
+                    .help("Display timestamp of each chunk."),
             )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
@@ -106,6 +114,7 @@ impl Args {
             .unwrap_or_default()
             .unwrap_or(&0);
         let little_endian = matches.is_present("little endian");
+        let timestamp = matches.is_present("timestamp");
         Self {
             infile,
             outfile,
@@ -117,6 +126,7 @@ impl Args {
             rawbin,
             pause: *pause,
             little_endian,
+            timestamp
         }
     }
 }
