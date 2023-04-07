@@ -20,6 +20,7 @@ fn main() -> Result<()> {
 		pause,
         little_endian,
         timestamp,
+        read_head,
     } = args;
 
     let (write_tx, write_rx) = bounded(1024);
@@ -41,7 +42,7 @@ fn main() -> Result<()> {
 this means that some fields in the config will not be considered in the output because chunksize does not match sum of the fields sizes in config.", style::style("WARNING").with(Color::Yellow).bold(), chunksize_from_config / 8, chunksize_from_config % 8, chunksize)
     }
 
-    let read_handle = thread::spawn(move || read::read_loop(&infile, write_tx));
+    let read_handle = thread::spawn(move || read::read_loop(&infile, write_tx, read_head));
     let write_handle = thread::spawn(move || {
         write::write_loop(
             &outfile,

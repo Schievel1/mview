@@ -12,12 +12,18 @@ pub struct Args {
     pub pause: u64,
     pub little_endian: bool,
     pub timestamp: bool,
+    pub read_head: usize,
 }
 
 impl Args {
     pub fn parse() -> Self {
         let matches = App::new("mview")
-            .arg(Arg::with_name("infile").help("Read from a file instead of stdin"))
+            .arg(Arg::with_name("infile")
+                    .short('i')
+                    .long("infile")
+                    .takes_value(true)
+                    .help("Read from a file instead of stdin"),
+            )
             .arg(
                 Arg::with_name("outfile")
                     .short('w')
@@ -91,6 +97,14 @@ impl Args {
                     .takes_value(false)
                     .help("Display timestamp of each chunk."),
             )
+            .arg(
+                Arg::with_name("read head")
+                    .short('h')
+                    .long("head")
+                    .takes_value(true)
+                    .value_parser(clap::value_parser!(usize))
+                    .help("Read only the first x bytes where is the number given and then exit."),
+            )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
@@ -115,6 +129,10 @@ impl Args {
             .unwrap_or(&0);
         let little_endian = matches.is_present("little endian");
         let timestamp = matches.is_present("timestamp");
+        let read_head = matches
+            .try_get_one::<usize>("read head")
+            .unwrap_or_default()
+            .unwrap_or(&0);
         Self {
             infile,
             outfile,
@@ -126,7 +144,8 @@ impl Args {
             rawbin,
             pause: *pause,
             little_endian,
-            timestamp
+            timestamp,
+            read_head: *read_head,
         }
     }
 }

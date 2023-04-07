@@ -3,7 +3,7 @@ use crossbeam::channel::Sender;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Result};
 
-pub fn read_loop(infile: &str, write_tx: Sender<Vec<u8>>) -> Result<()> {
+pub fn read_loop(infile: &str, write_tx: Sender<Vec<u8>>, read_head: usize) -> Result<()> {
     let mut reader: Box<dyn Read> = if !infile.is_empty() {
         Box::new(BufReader::new(File::open(infile)?))
     } else {
@@ -11,15 +11,22 @@ pub fn read_loop(infile: &str, write_tx: Sender<Vec<u8>>) -> Result<()> {
     };
 
     let mut buffer = [0; MAX_READ_SIZE];
-    loop{
+    loop {
         // read input
         let num_read = match reader.read(&mut buffer) {
-            Ok(0) => break,
+            Ok(0) => continue,
             Ok(x) => x,
             Err(_) => break,
         };
-        if write_tx.send(Vec::from(&buffer[..num_read])).is_err() {
+        if read_head > 0 {
+            if write_tx.send(Vec::from(&buffer[..read_head])).is_err() {
+                break;
+            }
             break;
+        } else {
+            if write_tx.send(Vec::from(&buffer[..num_read])).is_err() {
+                break;
+            }
         }
         buffer.fill(0);
     }
