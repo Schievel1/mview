@@ -1,0 +1,78 @@
+#+title: Mview Readme
+
+* What is Mview?
+mview (Mask viewer) is a program is the style of Unix coreutils that lets you view raw data though a mask.
+The mask is configurable and supports the common data types.
+Of course mview is written in Rust and therefore blazingly fast. ;-)
+
+One of mview's original applications was viewing messages that come from network. E.g. when you have an embedded device that sends it status via network over and over, Mview can read those messages and present them in a human readable way.
+But mview is very versatile and as many other application, see examples below.
+
+* Examples
+** Watching network messages in a human readable way
+Let's say we have a socket that listens on port 3000. This can be simulated with netcat. We can read from that socket and pipe the output to mview:
+#+begin_src sh
+nc -l -p 3000 | mview -c ./src/example_config --pause 100
+#+end_src
+Where ~--pause 100~ just tells mview to wait with updating its output for 100ms.
+And the example_config is this file:
+#+begin_src sh
+MyData1:String:2
+SomeOtherData:u8
+SomeMoreData:bool8
+EvenMoreData:String:3
+#+end_src
+Now we connect to that socket using netcat again:
+#+begin_src sh
+nc localhost 3000
+#+end_src
+We can now send data to that socket in stdin:
+#+begin_src sh
+~ > nc localhost 3000
+ab3456 # I typed this in and pressed return
+#+end_src
+mview will output
+#+begin_src
+MyData1: ab
+SomeOtherData: 51
+SomeMoreData: true
+EvenMoreData: 56
+#+end_src
+Mind that mview is trying to output the third byte it finds in the data it received as a byte. But since we typed =characters= into ~nc~ it will output the ASCII-value of the character 3, which is 51.
+The type ~bool8~ will interpret a whole byte like a boolean. Like in C anything other than 0 is interpreted as true.
+
+If we typed same more data in that socket, mview would start over and display the next few bytes through that mask.
+
+** Decoding a binary file
+Lets say you have a super secret header in a binary file and you are tired of reading raw hexadecimal values.
+Lets make that file first:
+#+begin_src sh
+echo hello345test0000000 > ~/myFile
+#+end_src
+Here we are only interested at the past until the 0s start. The 0s represent the rest of the file that comes after the header.
+Here is the according config to that:
+#+begin_src
+Shouldbehello:String:5
+SomeOtherData:u8
+SomeMoreData:bool8
+SomeMoreData:u8
+Shouldbetest:String:4
+#+end_src
+We know the header is 12 bytes long, so lets pipe that into mview:
+#+begin_src sh
+~ > head -c 12 ~/myFile | mview -c ./src/example_config
+Shouldbehello: hello
+SomeOtherData: 51
+SomeMoreData: true
+SomeMoreData: 53
+Shouldbetest: test
+#+end_src
+Instead of using the ~head~ command to get the first 12 bytes of the files, we could use the build in ~--head~ argument with the ~--infile~ to read directly from a file instead of stdin as well:
+#+begin_src sh
+~ > mview -c /home/pascal/dev/mview/src/example_config --infile ~/myFile --head 12
+Shouldbehello: hello
+SomeOtherData: 51
+SomeMoreData: true
+SomeMoreData: 53
+Shouldbetest: test
+#+end_src
