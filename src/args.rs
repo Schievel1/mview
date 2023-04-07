@@ -10,6 +10,7 @@ pub struct Args {
     pub rawhex: bool,
     pub rawbin: bool,
     pub pause: u64,
+    pub little_endian: bool,
 }
 
 impl Args {
@@ -76,6 +77,12 @@ impl Args {
                     .value_parser(clap::value_parser!(u64))
                     .help("Add a pause (in ms) between the output of chunks."),
             )
+            .arg(
+                Arg::with_name("little endian")
+                    .long("le")
+                    .takes_value(false)
+                    .help("Interpret integers as little endian (default is big endian)"),
+            )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
@@ -98,6 +105,7 @@ impl Args {
             .try_get_one::<u64>("pause")
             .unwrap_or_default()
             .unwrap_or(&0);
+        let little_endian = matches.is_present("little endian");
         Self {
             infile,
             outfile,
@@ -108,6 +116,7 @@ impl Args {
             rawhex,
             rawbin,
             pause: *pause,
+            little_endian,
         }
     }
 }

@@ -18,6 +18,7 @@ fn main() -> Result<()> {
         rawhex,
         rawbin,
 		pause,
+        little_endian,
     } = args;
 
     let (write_tx, write_rx) = bounded(1024);
@@ -51,6 +52,7 @@ this means that some fields in the config will not be considered in the output b
             write_rx,
             &config_lines,
 			pause,
+            little_endian,
         )
     });
     let read_io_result = read_handle.join().unwrap();
