@@ -44,9 +44,6 @@ pub fn write_loop(
         }
         let _: Result<()> = buffer.chunks(chunksize).try_for_each(|chunk| {
             let mut stdout = io::stdout();
-            if is_stdout {
-                execute!(stdout, cursor::Hide,)?;
-            }
             if is_stdout && !first_run {
                 let mut extra_lines = 0;
 				// this extra_lines function is messy TODO use safe coursor position
@@ -65,7 +62,6 @@ pub fn write_loop(
                     cursor::MoveToColumn(0),
                     Clear(ClearType::CurrentLine),
                     Clear(ClearType::FromCursorDown),
-                    cursor::Show,
                 )?;
             }
             if timestamp {
