@@ -1,4 +1,7 @@
+use crate::Format;
+use crate::format_number;
 use crate::print_raws;
+use crate::parse_config_line;
 use crate::size_in_bits;
 use bitvec::macros::internal::funty::{Fundamental, Integral};
 use bitvec::prelude::*;
@@ -63,6 +66,9 @@ pub fn write_loop(
             }
             print_raws(chunk, rawhex, rawbin, &mut writer);
             let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
+            // strategy: for every config line we call write_line().
+            // write_line() will parse the config line, then get the size of the data type it
+            // found it that line from the chunk, print it out and advance bitpos_in_chunk accordingly
             for conf_line in config_lines.iter() {
                 write_line(conf_line, chunk, &mut bitpos_in_chunk, &mut writer)?;
             }
@@ -78,6 +84,7 @@ pub fn write_integer_data<T>(
     bitpos_in_chunk: &usize,
     c_bits: &BitSlice<u8, Msb0>,
     writer: &mut Box<dyn Write>,
+    format: Format
 ) -> usize
 where
     T: Integral,
@@ -88,10 +95,7 @@ where
         myslice
             .copy_from_bitslice(&c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<T>()]);
         writer
-            .write_fmt(format_args!(
-                "{}\n",
-                &myslice[0..size_in_bits::<T>()].load::<T>()
-            ))
+            .write_fmt(format_args!("{}\n", format_number(&myslice[0..size_in_bits::<T>()].load::<T>(), format)))
             .unwrap();
     } else {
         writer
@@ -122,19 +126,15 @@ fn write_gap(
 
 pub fn write_line(
     conf_line: &str,
-    c: &[u8],
+    chunk: &[u8],
     bitpos_in_chunk: &mut usize,
     writer: &mut Box<dyn Write>,
 ) -> Result<()> {
-    let c_bits = c.view_bits::<Msb0>();
-    let (fieldname, rest) = conf_line.split_once(':').unwrap();
-    let (val_type, len) = match rest.split_once(':') {
-        Some(s) => (s.0, s.1.parse().unwrap_or_default()),
-        None => (rest, 0),
-    };
+    let c_bits = chunk.view_bits::<Msb0>();
+    let (fieldname, val_type, form, len) = parse_config_line(conf_line);
     writer.write_fmt(format_args!("{}", fieldname)).unwrap();
     writer.write_all(b": ").unwrap();
-    let val_type = val_type.to_lowercase(); // don't care about type
+    let val_type = val_type.to_lowercase(); // don't care about case fo the letters
     match val_type.as_str() {
         "bool1" => {
             writer
@@ -158,16 +158,16 @@ pub fn write_line(
             }
             *bitpos_in_chunk += size_in_bits::<u8>();
         }
-        "u8" => *bitpos_in_chunk += write_integer_data::<u8>(bitpos_in_chunk, c_bits, writer),
-        "u16" => *bitpos_in_chunk += write_integer_data::<u16>(bitpos_in_chunk, c_bits, writer),
-        "u32" => *bitpos_in_chunk += write_integer_data::<u32>(bitpos_in_chunk, c_bits, writer),
-        "u64" => *bitpos_in_chunk += write_integer_data::<u64>(bitpos_in_chunk, c_bits, writer),
-        "u128" => *bitpos_in_chunk += write_integer_data::<u128>(bitpos_in_chunk, c_bits, writer),
-        "i8" => *bitpos_in_chunk += write_integer_data::<i8>(bitpos_in_chunk, c_bits, writer),
-        "i16" => *bitpos_in_chunk += write_integer_data::<i16>(bitpos_in_chunk, c_bits, writer),
-        "i32" => *bitpos_in_chunk += write_integer_data::<i32>(bitpos_in_chunk, c_bits, writer),
-        "i64" => *bitpos_in_chunk += write_integer_data::<i64>(bitpos_in_chunk, c_bits, writer),
-        "i128" => *bitpos_in_chunk += write_integer_data::<i128>(bitpos_in_chunk, c_bits, writer),
+        "u8" => *bitpos_in_chunk += write_integer_data::<u8>(bitpos_in_chunk, c_bits, writer, form),
+        "u16" => *bitpos_in_chunk += write_integer_data::<u16>(bitpos_in_chunk, c_bits, writer, form),
+        "u32" => *bitpos_in_chunk += write_integer_data::<u32>(bitpos_in_chunk, c_bits, writer, form),
+        "u64" => *bitpos_in_chunk += write_integer_data::<u64>(bitpos_in_chunk, c_bits, writer, form),
+        "u128" => *bitpos_in_chunk += write_integer_data::<u128>(bitpos_in_chunk, c_bits, writer, form),
+        "i8" => *bitpos_in_chunk += write_integer_data::<i8>(bitpos_in_chunk, c_bits, writer, form),
+        "i16" => *bitpos_in_chunk += write_integer_data::<i16>(bitpos_in_chunk, c_bits, writer, form),
+        "i32" => *bitpos_in_chunk += write_integer_data::<i32>(bitpos_in_chunk, c_bits, writer, form),
+        "i64" => *bitpos_in_chunk += write_integer_data::<i64>(bitpos_in_chunk, c_bits, writer, form),
+        "i128" => *bitpos_in_chunk += write_integer_data::<i128>(bitpos_in_chunk, c_bits, writer, form),
         "f32" => {
             if *bitpos_in_chunk + size_in_bits::<f32>() <= c_bits.len() {
                 let mut myslice = bitvec![u8, Msb0; 0; size_in_bits::<f32>()];

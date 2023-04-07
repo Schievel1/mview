@@ -1,5 +1,7 @@
 use std::io::Write;
 use std::mem::size_of;
+use std::fmt::Binary;
+use std::fmt::{Display, Debug};
 
 pub mod args;
 pub mod read;
@@ -7,6 +9,30 @@ pub mod write;
 
 pub const MAX_READ_SIZE: usize = 16 * 1024;
 pub const BYTE_TO_BIT: usize = 8;
+
+pub enum Format {
+    Norm,
+    Hex,
+    Bin,
+}
+impl Format {
+    fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "n" | "normal" | "norm" => Self::Norm,
+            "h" | "hex" | "hexadecimal" => Self::Hex,
+            "b" | "bin" | "binary" => Self::Bin,
+            _ => Self::Norm,
+        }
+    }
+}
+
+fn format_number<T: Display + Debug + Binary>(num: T, format: Format) -> String {
+    match format {
+        Format::Norm => format!("{}", num),
+        Format::Hex => format!("0x{:02X?}", num),
+        Format::Bin => format!("{:08b}", num),
+    }
+}
 
 pub fn size_in_bits<T>() -> usize {
     size_of::<T>() * BYTE_TO_BIT
@@ -24,16 +50,27 @@ pub fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Wri
     }
 }
 
+pub fn parse_config_line(conf_line: &str) -> (&str, &str, Format, usize) {
+    let (fieldname, rest) = conf_line.split_once(':').unwrap();
+    let (val_type, rest) = match rest.split_once(':') {
+        Some(s) => (s.0, s.1),
+        None => (rest, "0"),
+    };
+    // at this point, rest could be a letter (to print in hex or binary)
+    // or a number (for stringlength)
+    let form = Format::from_str(&rest);
+    let mut len = 0;
+    if let Ok(n) = rest.parse() {
+        len = n;
+    }
+    (fieldname, val_type, form, len)
+}
+
 // calculate the size of a chunk using the config, returns bits!
 pub fn chunksize_by_config(config_lines: &[String]) -> usize {
     let mut bitlength = 0;
     for conf_line in config_lines.iter() {
-        let (_, rest) = conf_line.split_once(':').unwrap();
-        let (val_type, len) = match rest.split_once(':') {
-            Some(s) => (s.0, s.1.parse().unwrap_or_default()),
-            None => (rest, 0),
-        };
-
+        let (_, val_type, _, len) = parse_config_line(conf_line);
         let val_type = val_type.to_lowercase(); // don't care about type
         match val_type.as_str() {
             "bool1" => bitlength += 1,
@@ -234,3 +271,4 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
         assert_eq!(chunksize_by_config(&config_lines), 135);
     }
 }
+

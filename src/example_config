@@ -1,17 +1,20 @@
-Field0(bool1):bool1
-Field1(bool1):bool1
-Field2(bool1):bool1
-Field3(bool1):bool1
-Field4(bool1):bool1
-Field5(bool1):bool1
-Field6(bool1):bool1
-Field7(bool1):bool1
-Field8(bool8):bool8
-Two_Bytegap(bytegap2):bytegap:2
-Four_Bitgap(bitgap4):bitgap:4
-Field9(u8):u8
-Field10(u16):u16
-Field11(i32):i32
-Field12(String4):String:4
-Field13(iarb7):iarb:7
-Field14(uarb4):uarb:4
+Field1:u8
+Field2:u8:h
+Field3:u8:b
+# Field0(bool1):bool1
+# Field1(bool1):bool1
+# Field2(bool1):bool1
+# Field3(bool1):bool1
+# Field4(bool1):bool1
+# Field5(bool1):bool1
+# Field6(bool1):bool1
+# Field7(bool1):bool1
+# Field8(bool8):bool8
+# Two_Bytegap(bytegap2):bytegap:2
+# Four_Bitgap(bitgap4):bitgap:4
+# Field9(u8):u8
+# Field10(u16):u16
+# Field11(i32):i32
+# Field12(String4):String:4
+# Field13(iarb7):iarb:7
+# Field14(uarb4):uarb:4
