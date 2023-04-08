@@ -2,6 +2,8 @@ use crate::format_number;
 use crate::parse_config_line;
 use crate::print_raws;
 use crate::print_timestamp;
+use crate::print_statistics;
+use crate::print_bitpos;
 use crate::size_in_bits;
 use crate::Format;
 use bitvec::macros::internal::funty::{Fundamental, Integral};
@@ -28,6 +30,8 @@ pub fn write_loop(
     pause: u64,
     little_endian: bool,
     timestamp: bool,
+    statistics: bool,
+    bitpos: bool,
 ) -> Result<()> {
     // break what is read into chunks and apply config lines as masked to it
     let is_stdout = outfile.is_empty();
@@ -37,16 +41,21 @@ pub fn write_loop(
         Box::new(BufWriter::new(io::stdout()))
     };
     let mut first_run = true;
+    let mut message_count = 0;
     loop {
         let buffer = write_rx.recv().unwrap();
         if buffer.is_empty() {
             break;
         }
+        message_count += 1;
+        let message_len = buffer.len().as_u32();
+        let mut chunk_count = 0;
         let _: Result<()> = buffer.chunks(chunksize).try_for_each(|chunk| {
+            chunk_count += 1;
             let mut stdout = io::stdout();
             if is_stdout && !first_run {
                 let mut extra_lines = 0;
-				// this extra_lines function is messy TODO use safe coursor position
+                // this extra_lines function is messy TODO use safe coursor position
                 match (rawbin, rawhex) {
                     (true, true) => extra_lines += 3,
                     (false, true) | (true, false) => extra_lines += 2,
@@ -54,6 +63,12 @@ pub fn write_loop(
                 }
                 if timestamp {
                     extra_lines += 1
+                };
+                if statistics {
+                    extra_lines += 3
+                };
+                if bitpos {
+                    extra_lines += config_lines.len() as u16
                 };
                 execute!(
                     stdout,
@@ -67,12 +82,18 @@ pub fn write_loop(
             if timestamp {
                 print_timestamp(&mut writer);
             }
+            if statistics {
+                print_statistics(&mut writer, message_count, message_len, chunk_count);
+            }
             print_raws(chunk, rawhex, rawbin, &mut writer);
             let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
             // strategy: for every config line we call write_line().
             // write_line() will parse the config line, then get the size of the data type it
             // found it that line from the chunk, print it out and advance bitpos_in_chunk accordingly
             for conf_line in config_lines.iter() {
+                if bitpos {
+                    print_bitpos(&mut writer, bitpos_in_chunk);
+                }
                 write_line(
                     conf_line,
                     chunk,

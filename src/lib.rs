@@ -1,7 +1,7 @@
+use std::fmt::Binary;
+use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::mem::size_of;
-use std::fmt::Binary;
-use std::fmt::{Display, Debug};
 
 pub mod args;
 pub mod read;
@@ -51,7 +51,33 @@ pub fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Wri
 }
 
 pub fn print_timestamp(writer: &mut Box<dyn Write>) {
-    writer.write_fmt(format_args!("{}\n",chrono::offset::Local::now())).unwrap()
+    writer
+        .write_fmt(format_args!("{}\n", chrono::offset::Local::now()))
+        .unwrap()
+}
+
+pub fn print_bitpos(writer: &mut Box<dyn Write>, bitpos: usize) {
+    writer
+        .write_fmt(format_args!(
+            "byte {}, bit {}\n",
+            bitpos / BYTE_TO_BIT,
+            bitpos % BYTE_TO_BIT
+        ))
+        .unwrap()
+}
+
+pub fn print_statistics(
+    writer: &mut Box<dyn Write>,
+    message_count: u32,
+    message_len: u32,
+    chunk_count: u32,
+) {
+    writer
+        .write_fmt(format_args!(
+            "Message no: {}\nMessage length: {} bytes\nCurrent chunk in this message: {}\n",
+            message_count, message_len, chunk_count
+        ))
+        .unwrap();
 }
 
 pub fn parse_config_line(conf_line: &str) -> (&str, &str, Format, usize) {
@@ -275,4 +301,3 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
         assert_eq!(chunksize_by_config(&config_lines), 135);
     }
 }
-

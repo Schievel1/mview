@@ -21,6 +21,8 @@ fn main() -> Result<()> {
         little_endian,
         timestamp,
         read_head,
+        print_statistics,
+        print_bitpos,
     } = args;
 
     let (write_tx, write_rx) = bounded(1024);
@@ -56,6 +58,8 @@ this means that some fields in the config will not be considered in the output b
 			pause,
             little_endian,
             timestamp,
+            print_statistics,
+            print_bitpos,
         )
     });
     let read_io_result = read_handle.join().unwrap();

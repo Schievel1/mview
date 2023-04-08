@@ -1,4 +1,9 @@
-Field1:u8:h
+Shouldbehello:String:5
+SomeOtherData:u8
+SomeMoreData:bool8
+SomeMoreData:u8
+Shouldbetest:String:4
+EvenMoreData:String:3
 # Field0(bool1):bool1
 # Field1(bool1):bool1
 # Field2(bool1):bool1

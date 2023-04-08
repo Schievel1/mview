@@ -13,6 +13,8 @@ pub struct Args {
     pub little_endian: bool,
     pub timestamp: bool,
     pub read_head: usize,
+    pub print_statistics: bool,
+    pub print_bitpos: bool,
 }
 
 impl Args {
@@ -105,6 +107,18 @@ impl Args {
                     .value_parser(clap::value_parser!(usize))
                     .help("Read only the first x bytes where is the number given and then exit."),
             )
+            .arg(
+                Arg::with_name("print statistics")
+                    .long("stats")
+                    .takes_value(false)
+                    .help("Print statistics about messages received, message length and chunk number."),
+            )
+            .arg(
+                Arg::with_name("print bitposition")
+                    .long("bitpos")
+                    .takes_value(false)
+                    .help("Print the current position inside a chunk. (For debugging purposes)"),
+            )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
@@ -133,6 +147,8 @@ impl Args {
             .try_get_one::<usize>("read head")
             .unwrap_or_default()
             .unwrap_or(&0);
+        let print_statistics = matches.is_present("print statistics");
+        let print_bitpos = matches.is_present("print bitposition");
         Self {
             infile,
             outfile,
@@ -146,6 +162,8 @@ impl Args {
             little_endian,
             timestamp,
             read_head: *read_head,
+            print_statistics,
+            print_bitpos,
         }
     }
 }
