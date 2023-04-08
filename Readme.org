@@ -22,6 +22,7 @@ SomeOtherData:u8
 SomeMoreData:bool8
 EvenMoreData:String:3
 #+end_src
+See below for the different datatypes. The first String before the first ~:~ is an arbitrary identifier. You can name that field however you want, for the sake of your own confusion you can also give different fields the same name.
 Now we connect to that socket using netcat again:
 #+begin_src sh
 nc localhost 3000
@@ -75,4 +76,184 @@ SomeOtherData: 51
 SomeMoreData: true
 SomeMoreData: 53
 Shouldbetest: test
+#+end_src
+
+* Configuration file
+The tell mview what the mask is, we need to pass a configuration file to it with the ~-c / --config~ argument. The following points are the possible contents of that file.
+** Comments
+Lines that start with a ~#~ are not evaluated by mview and can be used as comments.
+Example:
+#+begin_src
+Myfieldname:String:3 # is evaluated
+# A comment that is not evaluated
+Myotherfieldname:String:3 # is also evaluated
+#+end_src
+** Supported data types
+**** bool1:
+Evaluates a single bit in the chunk as true or false.
+***** Example line in config
+#+begin_src
+Myfieldname:bool1
+#+end_src
+**** bool8
+Evaluates a whole byte to true or false in C style: Everything except 0 is true.
+***** Example line in config
+#+begin_src
+Myfieldname:bool8
+#+end_src
+**** u8, u16, u32, u64, u128, i8, i16 etc.
+Evaluates 8, 16, 32 bits into an integer.
+I think the type names are self-explanatory, if not look the up [[https://doc.rust-lang.org/book/ch03-02-data-types.html#integer-types][here]].
+***** Example line in config
+#+begin_src
+Myfieldname:i16
+Myfieldname:i32:h # can also be displayed in hexadecimal
+Myfieldname:i32:hex # works as well
+Myfieldname:i32:hexadecimal # works as well
+Myfieldname:u8:b # can also be displayed in binary
+Myfieldname:u8:binary # works as well
+#+end_src
+**** f32 / f64
+Evaluates a 32 bits / 64 bits into a floating point number.
+***** Example line in config
+#+begin_src
+Myfieldname:f32
+#+end_src
+**** iarb / uarb
+In order to save a few bits of space sometimes integers don't use full bytes in network messages. Therefore there is this type. The length operator (the number at the end in the config line below) represents the length of that field in =bits=, not byte!
+***** Example line in config
+#+begin_src
+Myfieldname:iarb:7
+#+end_src
+**** String
+Read a few bytes of the chunk and display them as ASCII characters. The length operator represents the length in =bytes=, not bit! Only one-byte characters are supported like standard strings in C.
+***** Example line in config
+#+begin_src
+Myfieldname:String:4
+#+end_src
+**** bytegap, bitgap
+Sometimes you want to skip a few bytes and don't display them in the output. You could just fill those with bool8 and bool1, but for tidiness sake there are those types.
+Mview will jump the bytes and bits ahead in a chunk and continue evaluation with the next config line.
+Bytegap takes a length operator in bytes and bitgap takes a length operator in bits.n
+***** Example line in config
+#+begin_src
+Myfieldname:bytegap:2 # a 2 byte wide gap
+Myfieldname:bitgap:4 # a 4 bit wide gap
+#+end_src
+* Byte order
+Because mview is primarily used for decoding network messages, integers that consist of several bytes are evaluated in network byte order (big-endian/ motorola order) by default.
+However the expected byte order can be changed with the ~--le~ flag.
+
+* Messages, chunks and fields
+mview receives messages from stdin or a file. It then divides a received message into chunks, where the size of a chunk is determined by the config. (The length of the datatypes added up.)
+If a datagram socket is read, usually the chunksize is the same like the message size:
+#+begin_src
+
+  +--------------+   +--------------+        +------------------+
+  |   Message    |   |    Chunk     |------->| Data field 1     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |-->|              |------->| Data field 2     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |   |              |------->| Data field 3     |
+  +--------------+   +--------------+        +------------------+
+#+end_src
+But if a stream socket is read, or a socket was recorded and that record is fed into mview, mview has no possible way to determine where one message ends and another starts. In this case (when message is longer than chunk size) mview will take the length of a chunk in bytes from the message and display it fields, then continue to take the next length of a chunk from the message and display that until the whole message is processed.
+#+begin_src
+  +--------------+   +--------------+        +------------------+
+  |   Message    |   |    Chunk 1   |------->| Data field 1     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |-->|              |------->| Data field 2     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |   |              |------->| Data field 3     |
+  |              |   +--------------+        +------------------+
+  |              |   +--------------+        +------------------+
+  |              |   |    Chunk 2   |------->| Data field 1     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |-->|              |------->| Data field 2     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |   |              |------->| Data field 3     |
+  +--------------+   +--------------+        +------------------+
+#+end_src
+In case the message size is not a whole multiple of chunk size, the data fields of the last message will be cut off: (this will be printed in mviews output as "values size is bigger than what is left of that data chunk")
+#+begin_src
+  +--------------+   +--------------+        +------------------+
+  |   Message    |   |    Chunk 1   |------->| Data field 1     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |-->|              |------->| Data field 2     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |   |              |------->| Data field 3     |
+  |              |   +--------------+        +------------------+
+  |              |   +--------------+        +------------------+
+  |              |   |    Chunk 2   |------->| Data field 1     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |-->|              |------->| Data field 2     |
+  |______________|   |              |        +------------------+
+                     |              |
+                     |              |
+                     +--------------+
+
+#+end_src
+Usually the chunk size is calculated from the config file, but it can be set manually with the argument ~-b / --chunksize~. (In bytes) In the case that the sum of the length of the fields in config is bigger than the size from the argument, the message "values size is bigger than what is left of that data chunk" will be displayed for the fields that have no data. If the chunk size from the argument is bigger, the remaining bytes from that chunk will not be evaluated.
+
+* Record to ~--outfile~
+Please note that writing to a file is different that piping stdout of mview into a file like this:
+#+begin_src sh
+mview -c ./src/example_config --stats > loggingfile.txt
+#+end_src
+Mview resets the cursor position for every chunk, therefore the output file would only have the last chunk printed in it like this:
+#+begin_src
+Message no: 3
+Message length: 30 bytes
+Current chunk in this message: 2
+
+Shouldbehello: oehus
+SomeOtherData: 111
+SomeMoreData: true
+SomeMoreData: 115
+Shouldbetest: hutn
+EvenMoreData: eu
+#+end_src
+When using the ~---outfile~ argument, mview will not reset the cursor position and the outfile will look like this:
+#+begin_src
+Message no: 1
+Message length: 37 bytes
+Current chunk in this message: 1
+
+Shouldbehello: otnes
+SomeOtherData: 117
+SomeMoreData: true
+SomeMoreData: 115
+Shouldbetest: oent
+EvenMoreData: hsh
+
+Message no: 1
+Message length: 37 bytes
+Current chunk in this message: 2
+
+Shouldbehello: usneu
+SomeOtherData: 116
+SomeMoreData: true
+SomeMoreData: 111
+Shouldbetest: euho
+EvenMoreData: euh
+
+Message no: 1
+Message length: 37 bytes
+Current chunk in this message: 3
+
+Shouldbehello: sotne
+SomeOtherData: 117
+SomeMoreData: true
+SomeMoreData: values size is bigger than what is left of that data chunk
+Shouldbetest: values size is bigger than what is left of that data chunk
+EvenMoreData: values size is bigger than what is left of that data chunk
 #+end_src

@@ -18,4 +18,4 @@
 - [X] add option to display statistics (number of chunks, number of bytes received)
 - [X] add option to display numbers in hex, bin
   use :b, :binary (for binary) or :h, :hex or :hexadecimal (for hex) as suffix of the line of an integer in config
-- [ ] write readme
+- [X] write readme
