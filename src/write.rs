@@ -1,8 +1,7 @@
+use crate::count_lines;
 use crate::format_number;
 use crate::parse_config_line;
-use crate::print_raws;
-use crate::print_timestamp;
-use crate::print_statistics;
+use crate::print_additional;
 use crate::print_bitpos;
 use crate::size_in_bits;
 use crate::Format;
@@ -54,38 +53,33 @@ pub fn write_loop(
             chunk_count += 1;
             let mut stdout = io::stdout();
             if is_stdout && !first_run {
-                let mut extra_lines = 0;
-                // this extra_lines function is messy TODO use safe coursor position
-                match (rawbin, rawhex) {
-                    (true, true) => extra_lines += 3,
-                    (false, true) | (true, false) => extra_lines += 2,
-                    _ => (),
-                }
-                if timestamp {
-                    extra_lines += 1
-                };
-                if statistics {
-                    extra_lines += 3
-                };
-                if bitpos {
-                    extra_lines += config_lines.len() as u16
-                };
                 execute!(
                     stdout,
-                    // TODO use safeposition() instead
-                    cursor::MoveUp(config_lines.len() as u16 + extra_lines),
+                    cursor::MoveUp(count_lines(
+                        rawbin,
+                        rawhex,
+                        timestamp,
+                        statistics,
+                        bitpos,
+                        config_lines.len(),
+                        chunk
+                    ) + 1), // the +1 is the newline at the end of every chunk
                     cursor::MoveToColumn(0),
                     Clear(ClearType::CurrentLine),
                     Clear(ClearType::FromCursorDown),
                 )?;
             }
-            if timestamp {
-                print_timestamp(&mut writer);
-            }
-            if statistics {
-                print_statistics(&mut writer, message_count, message_len, chunk_count);
-            }
-            print_raws(chunk, rawhex, rawbin, &mut writer);
+            print_additional(
+                &mut writer,
+                rawbin,
+                rawhex,
+                timestamp,
+                statistics,
+                chunk,
+                message_count,
+                message_len,
+                chunk_count,
+            );
             let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
             // strategy: for every config line we call write_line().
             // write_line() will parse the config line, then get the size of the data type it
@@ -102,6 +96,8 @@ pub fn write_loop(
                     little_endian,
                 )?;
             }
+            // print an empty line at the end of every chunk
+            writer.write_all(b"\n").unwrap();
             thread::sleep(time::Duration::from_millis(pause));
             first_run = false;
             Ok(())

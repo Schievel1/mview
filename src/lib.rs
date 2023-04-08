@@ -38,15 +38,18 @@ pub fn size_in_bits<T>() -> usize {
     size_of::<T>() * BYTE_TO_BIT
 }
 
-pub fn print_raws(c: &[u8], rawhex: bool, rawbin: bool, writer: &mut Box<dyn Write>) {
-    if rawhex {
-        writer.write_fmt(format_args!("{:02X?}\n", c)).unwrap();
+pub fn print_raw_hex(writer: &mut Box<dyn Write>, chunk: &[u8]) {
+    for line in chunk.chunks(16) {
+        writer.write_fmt(format_args!("{:02X?}\n", line)).unwrap();
     }
-    if rawbin {
-        for b in c {
-            writer.write_fmt(format_args!("{:08b} ", b)).unwrap();
+}
+
+pub fn print_raw_bin(writer: &mut Box<dyn Write>, chunk: &[u8]) {
+    for line in chunk.chunks(8) {
+        for byte in line {
+            writer.write_fmt(format_args!("{:08b} ", byte)).unwrap();
         }
-        writer.write_all(b"\n\n").unwrap();
+        writer.write_all(b"\n").unwrap();
     }
 }
 
@@ -64,6 +67,66 @@ pub fn print_bitpos(writer: &mut Box<dyn Write>, bitpos: usize) {
             bitpos % BYTE_TO_BIT
         ))
         .unwrap()
+}
+
+pub fn count_lines(
+    rawbin: bool,
+    rawhex: bool,
+    timestamp: bool,
+    statistics: bool,
+    bitpos: bool,
+    config_lines: usize,
+    chunk: &[u8],
+) -> u16 {
+    let mut extra_lines: u16 = config_lines as u16;
+    // count lines and reset cursor position ofter first run
+    if rawbin {
+        extra_lines += chunk.chunks(8).count() as u16;
+    };
+    if rawhex {
+        extra_lines += chunk.chunks(16).count() as u16;
+    };
+    if timestamp {
+        extra_lines += 1;
+    };
+    if statistics {
+        extra_lines += 3;
+    };
+    if bitpos {
+        extra_lines += config_lines as u16
+    };
+    if rawbin || rawhex || timestamp || statistics {
+        extra_lines += 1;
+    }
+    extra_lines
+}
+
+pub fn print_additional(
+    writer: &mut Box<dyn Write>,
+    rawbin: bool,
+    rawhex: bool,
+    timestamp: bool,
+    statistics: bool,
+    chunk: &[u8],
+    message_count: u32,
+    message_len: u32,
+    chunk_count: u32,
+) {
+    if timestamp {
+        print_timestamp(writer);
+    }
+    if statistics {
+        print_statistics(writer, message_count, message_len, chunk_count);
+    }
+    if rawhex {
+        print_raw_hex(writer, chunk);
+    }
+    if rawbin {
+        print_raw_bin(writer, chunk);
+    }
+    if rawbin || rawhex || timestamp || statistics {
+        writer.write_all(b"\n").unwrap();
+    }
 }
 
 pub fn print_statistics(
