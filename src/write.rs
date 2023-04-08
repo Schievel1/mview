@@ -5,6 +5,8 @@ use crate::print_additional;
 use crate::print_bitpos;
 use crate::size_in_bits;
 use crate::Format;
+use anyhow::Result;
+use anyhow::Context;
 use bitvec::macros::internal::funty::{Fundamental, Integral};
 use bitvec::prelude::*;
 use core::time;
@@ -14,7 +16,7 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 use std::fs::File;
-use std::io::{self, BufWriter, Result, Write};
+use std::io::{self, BufWriter, Write};
 use std::thread;
 
 pub fn write_loop(
@@ -42,7 +44,9 @@ pub fn write_loop(
     let mut first_run = true;
     let mut message_count = 0;
     loop {
-        let buffer = write_rx.recv().unwrap();
+        let buffer = write_rx
+            .recv()
+            .context("Error recieving data from read thread.")?;
         if buffer.is_empty() {
             break;
         }
@@ -55,15 +59,17 @@ pub fn write_loop(
             if is_stdout && !first_run {
                 execute!(
                     stdout,
-                    cursor::MoveUp(count_lines(
-                        rawbin,
-                        rawhex,
-                        timestamp,
-                        statistics,
-                        bitpos,
-                        config_lines.len(),
-                        chunk
-                    ) + 1), // the +1 is the newline at the end of every chunk
+                    cursor::MoveUp(
+                        count_lines(
+                            rawbin,
+                            rawhex,
+                            timestamp,
+                            statistics,
+                            bitpos,
+                            config_lines.len(),
+                            chunk
+                        ) + 1
+                    ), // the +1 is the newline at the end of every chunk
                     cursor::MoveToColumn(0),
                     Clear(ClearType::CurrentLine),
                     Clear(ClearType::FromCursorDown),
@@ -79,14 +85,14 @@ pub fn write_loop(
                 message_count,
                 message_len,
                 chunk_count,
-            );
+            )?;
             let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
             // strategy: for every config line we call write_line().
             // write_line() will parse the config line, then get the size of the data type it
             // found it that line from the chunk, print it out and advance bitpos_in_chunk accordingly
             for conf_line in config_lines.iter() {
                 if bitpos {
-                    print_bitpos(&mut writer, bitpos_in_chunk);
+                    print_bitpos(&mut writer, bitpos_in_chunk)?;
                 }
                 write_line(
                     conf_line,
@@ -97,7 +103,9 @@ pub fn write_loop(
                 )?;
             }
             // print an empty line at the end of every chunk
-            writer.write_all(b"\n").unwrap();
+            writer
+                .write_all(b"\n")
+                .context("Could now write to writer")?;
             thread::sleep(time::Duration::from_millis(pause));
             first_run = false;
             Ok(())
@@ -112,7 +120,7 @@ pub fn write_integer_data<T>(
     writer: &mut Box<dyn Write>,
     format: Format,
     little_endian: bool,
-) -> usize
+) -> Result<usize>
 where
     T: Integral,
 {
@@ -127,21 +135,21 @@ where
                     "{}\n",
                     format_number(&myslice[0..size_in_bits::<T>()].load_le::<T>(), format)
                 ))
-                .unwrap();
+                .context("Could now write to writer")?;
         } else {
             writer
                 .write_fmt(format_args!(
                     "{}\n",
                     format_number(&myslice[0..size_in_bits::<T>()].load_be::<T>(), format)
                 ))
-                .unwrap();
+                .context("Could now write to writer")?;
         }
     } else {
         writer
             .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .unwrap();
+            .context("Could now write to writer")?;
     }
-    size_in_bits::<T>()
+    Ok(size_in_bits::<T>())
 }
 
 fn write_gap(
@@ -150,17 +158,17 @@ fn write_gap(
     writer: &mut Box<dyn Write>,
     len: usize,
     typelen: usize,
-) -> usize {
+) -> Result<usize> {
     if *bitpos_in_chunk + len * typelen <= c_bits.len() {
         writer
             .write_fmt(format_args!("(gap of {} bit)\n", len * typelen))
-            .unwrap();
+            .context("Could now write to writer")?;
     } else {
         writer
             .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .unwrap();
+            .context("Could now write to writer")?;
     }
-    typelen * len
+    Ok(typelen * len)
 }
 
 pub fn write_line(
@@ -171,15 +179,15 @@ pub fn write_line(
     little_endian: bool,
 ) -> Result<()> {
     let c_bits = chunk.view_bits::<Msb0>();
-    let (fieldname, val_type, form, len) = parse_config_line(conf_line);
-    writer.write_fmt(format_args!("{}", fieldname)).unwrap();
-    writer.write_all(b": ").unwrap();
+    let (fieldname, val_type, form, len) = parse_config_line(conf_line)?;
+    writer.write_fmt(format_args!("{}", fieldname)).context("Could now write to writer")?;
+    writer.write_all(b": ").context("Could now write to writer")?;
     let val_type = val_type.to_lowercase(); // don't care about case fo the letters
     match val_type.as_str() {
         "bool1" => {
             writer
                 .write_fmt(format_args!("{}\n", c_bits[*bitpos_in_chunk]))
-                .unwrap();
+            .context("Could now write to writer")?;
             *bitpos_in_chunk += 1;
         }
         "bool8" => {
@@ -190,53 +198,53 @@ pub fn write_line(
                 );
                 writer
                     .write_fmt(format_args!("{}\n", myslice[0..8].load::<u8>() > 0))
-                    .unwrap();
+            .context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
+            .context("Could now write to writer")?;
             }
             *bitpos_in_chunk += size_in_bits::<u8>();
         }
         "u8" => {
             *bitpos_in_chunk +=
-                write_integer_data::<u8>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<u8>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "u16" => {
             *bitpos_in_chunk +=
-                write_integer_data::<u16>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<u16>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "u32" => {
             *bitpos_in_chunk +=
-                write_integer_data::<u32>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<u32>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "u64" => {
             *bitpos_in_chunk +=
-                write_integer_data::<u64>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<u64>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "u128" => {
             *bitpos_in_chunk +=
-                write_integer_data::<u128>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<u128>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "i8" => {
             *bitpos_in_chunk +=
-                write_integer_data::<i8>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<i8>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "i16" => {
             *bitpos_in_chunk +=
-                write_integer_data::<i16>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<i16>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "i32" => {
             *bitpos_in_chunk +=
-                write_integer_data::<i32>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<i32>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "i64" => {
             *bitpos_in_chunk +=
-                write_integer_data::<i64>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<i64>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "i128" => {
             *bitpos_in_chunk +=
-                write_integer_data::<i128>(bitpos_in_chunk, c_bits, writer, form, little_endian)
+                write_integer_data::<i128>(bitpos_in_chunk, c_bits, writer, form, little_endian)?;
         }
         "f32" => {
             if *bitpos_in_chunk + size_in_bits::<f32>() <= c_bits.len() {
@@ -246,11 +254,11 @@ pub fn write_line(
                 );
                 writer
                     .write_fmt(format_args!("{}\n", &myslice[0..32].load::<u32>().as_f32()))
-                    .unwrap();
+            .context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
+            .context("Could now write to writer")?;
             }
             *bitpos_in_chunk += size_in_bits::<f32>();
         }
@@ -262,11 +270,11 @@ pub fn write_line(
                 );
                 writer
                     .write_fmt(format_args!("{}\n", &myslice[0..64].load::<u64>().as_f64()))
-                    .unwrap();
+            .context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
+            .context("Could now write to writer")?;
             }
             *bitpos_in_chunk += size_in_bits::<f64>();
         }
@@ -279,14 +287,14 @@ pub fn write_line(
                             c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<u8>()]
                                 .load::<u8>() as char
                         ))
-                        .unwrap();
+            .context("Could now write to writer")?;
                     *bitpos_in_chunk += size_in_bits::<u8>();
                 }
-                writer.write_fmt(format_args!("\n")).unwrap();
+                writer.write_fmt(format_args!("\n")).context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
+            .context("Could now write to writer")?;
             }
         }
         "iarb" => {
@@ -307,12 +315,12 @@ pub fn write_line(
                 } else {
                     target_int = int_bits.load::<i128>();
                 }
-                writer.write_fmt(format_args!("{}\n", target_int)).unwrap();
+                writer.write_fmt(format_args!("{}\n", target_int)).context("Could now write to writer")?;
                 *bitpos_in_chunk += len;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
+            .context("Could now write to writer")?;
             }
         }
         "uarb" => {
@@ -323,22 +331,25 @@ pub fn write_line(
                     int_bits.set(i, c_bits[*bitpos_in_chunk + i]); // copy the payload over
                 }
                 let target_int = int_bits.load::<i128>();
-                writer.write_fmt(format_args!("{}\n", target_int)).unwrap();
+                writer.write_fmt(format_args!("{}\n", target_int))
+                      .context("Could now write to writer")?;
+
                 *bitpos_in_chunk += len;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-                    .unwrap();
+            .context("Could now write to writer")?;
             }
         }
         "bytegap" => {
-            *bitpos_in_chunk += write_gap(bitpos_in_chunk, c_bits, writer, len, 8);
+            *bitpos_in_chunk += write_gap(bitpos_in_chunk, c_bits, writer, len, 8)?;
         }
         "bitgap" => {
-            *bitpos_in_chunk += write_gap(bitpos_in_chunk, c_bits, writer, len, 1);
+            *bitpos_in_chunk += write_gap(bitpos_in_chunk, c_bits, writer, len, 1)?;
         }
         _ => eprintln!("unknown type"),
     }
-    writer.flush().unwrap();
+    writer.flush().context("Could now write to writer")?;
+
     Ok(())
 }

@@ -1,8 +1,9 @@
+use anyhow::Result;
 use crossbeam::channel::bounded;
 use crossterm::style::{self, Color, Stylize};
 use mview::{args::Args, chunksize_by_config, read, size_in_bits, write};
 use std::fs::File;
-use std::io::{BufRead, BufReader, Result};
+use std::io::{BufRead, BufReader};
 use std::thread;
 
 fn main() -> Result<()> {
@@ -28,12 +29,10 @@ fn main() -> Result<()> {
     let (write_tx, write_rx) = bounded(1024);
     let config_lines: Vec<String> = BufReader::new(File::open(config)?)
         .lines()
-        .collect::<Result<Vec<String>>>()
-        .unwrap()
-        .into_iter()
+        .flatten()
         .filter(|l| !l.starts_with('#'))
         .collect();
-    let chunksize_from_config = chunksize_by_config(&config_lines); // bits!
+    let chunksize_from_config = chunksize_by_config(&config_lines)?; // bits!
     if chunksize < 1 {
         // bytes!
         // if the chunksize from arguments is invalid, get the config chunks
@@ -62,8 +61,8 @@ this means that some fields in the config will not be considered in the output b
             print_bitpos,
         )
     });
-    let read_io_result = read_handle.join().unwrap();
-    let write_io_result = write_handle.join().unwrap();
+    let read_io_result = read_handle.join().expect("Unable to join read thread");
+    let write_io_result = write_handle.join().expect("Unable to join write thread");
     read_io_result?;
     write_io_result?;
     Ok(())

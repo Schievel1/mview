@@ -8,7 +8,7 @@
 - [X] use separate threads for input and output
 - [X] print raw data chunk in hex at top of output (as option)
 - [X] remove debugging thread wait in main
-- [ ] proper error handling (instead of unwrapping everything)
+- [X] proper error handling (instead of unwrapping everything)
 - [ ] add possibility to display LSB0 (least significant BIT first) and MSB0 formatted data (and default to whatever is more common) -> MSB0 is more common
 - [X] add possibility to display Little Endian and Big Endian (BYTES!) formatted data -> Big Endian (Network Bytes order) is more common for mviews use case. (use functions load_le and load_be for this)
   for some reason it does not make a differnce if I call load_be oder load_le, I have to do further research on this
