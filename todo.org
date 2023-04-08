@@ -4,7 +4,7 @@
 - [X] allow an offset in the chunk to be made
 - [X] allow the possibility to have integers of arbitrary length, positive and negative
 - [X] refactor using library
-- [ ] write tests
+- [X] write tests
 - [X] use separate threads for input and output
 - [X] print raw data chunk in hex at top of output (as option)
 - [X] remove debugging thread wait in main

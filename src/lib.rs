@@ -10,6 +10,7 @@ pub mod write;
 pub const MAX_READ_SIZE: usize = 16 * 1024;
 pub const BYTE_TO_BIT: usize = 8;
 
+#[derive(Debug, PartialEq)]
 pub enum Format {
     Norm,
     Hex,
@@ -183,7 +184,7 @@ pub fn chunksize_by_config(config_lines: &[String]) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::chunksize_by_config;
+    use crate::{chunksize_by_config, count_lines, size_in_bits, parse_config_line, Format};
 
     #[test]
     fn test_chunksize_by_config_bool1() {
@@ -362,5 +363,127 @@ Field13(iarb7):iarb:7
 Field14(uarb4):uarb:4"; // should sum up to 135 bits
         let config_lines: Vec<String> = config.lines().map(|s| s.to_owned()).collect();
         assert_eq!(chunksize_by_config(&config_lines), 135);
+    }
+
+    #[test]
+    fn test_size_in_bits() {
+        assert_eq!(size_in_bits::<u16>(), 16);
+    }
+
+    #[test]
+    fn test_count_lines_rawbin() {
+        // we divide the chunk into 8 byte wide lines, so therefore
+        // this must be 25 / 8 = 3 plus 1 for the last lines
+        // plus 1 for the free lines beneath the additional info
+        // plus 2 because the config lines are always counted
+        let chunk: [u8; 25] = [0xFF; 25];
+        let conf_lines = 2;
+        assert_eq!(
+            count_lines(true, false, false, false, false, conf_lines, &chunk),
+            7
+        );
+    }
+    #[test]
+    fn test_count_lines_rawhex() {
+        // we divide the chunk into 16 byte wide lines, so therefore
+        // this must be 58 / 16 = 3 plus 1 for the last lines
+        // plus 1 for the free lines beneath the additional info
+        // plus 2 because the config lines are always counted
+        let chunk: [u8; 58] = [0xFF; 58];
+        let conf_lines = 2;
+        assert_eq!(
+            count_lines(false, true, false, false, false, conf_lines, &chunk),
+            7
+        );
+    }
+    #[test]
+    fn test_count_lines_bitpos() {
+        // plus 2 because the config lines are always counted
+        let chunk: [u8; 2] = [0xFF, 25];
+        let conf_lines = 2;
+        assert_eq!(
+            count_lines(false, false, false, false, true, conf_lines, &chunk),
+            4
+        );
+    }
+    #[test]
+    fn test_count_lines_other() {
+        // plus 2 because the config lines are always counted
+        let chunk: [u8; 2] = [0xFF, 25];
+        let conf_lines = 2;
+        assert_eq!(
+            count_lines(false, false, true, false, false, conf_lines, &chunk),
+            4
+        );
+        assert_eq!(
+            count_lines(false, false, true, true, false, conf_lines, &chunk),
+            7
+        );
+    }
+
+    #[test]
+    fn test_parse_config_line_simple() {
+        let conf_line = "Testfield:u8";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "u8");
+        assert_eq!(parsed_line.2, Format::Norm);
+    }
+    #[test]
+    fn test_parse_config_line_len() {
+        let conf_line = "Testfield:STriNg:4";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "STriNg");
+        assert_eq!(parsed_line.3, 4);
+    }
+    #[test]
+    fn test_parse_config_line_h() {
+        let conf_line = "Testfield:u16:h";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "u16");
+        assert_eq!(parsed_line.2, Format::Hex);
+    }
+    #[test]
+    fn test_parse_config_line_hex() {
+        let conf_line = "Testfield:u16:hex";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "u16");
+        assert_eq!(parsed_line.2, Format::Hex);
+    }
+    #[test]
+    fn test_parse_config_line_hexadecimal() {
+        let conf_line = "Testfield:u16:hexadecimal";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "u16");
+        assert_eq!(parsed_line.2, Format::Hex);
+    }
+    #[test]
+    fn test_parse_config_line_b() {
+        let conf_line = "Testfield:u16:b";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "u16");
+        assert_eq!(parsed_line.2, Format::Bin);
+    }
+    #[test]
+    fn test_parse_config_line_binary() {
+        let conf_line = "Testfield:u16:binary";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "u16");
+        assert_eq!(parsed_line.2, Format::Bin);
+    }
+    #[test]
+    fn test_parse_config_line_unknown_format() {
+        // if the format is unknown, Format::Norm should be returned
+        let conf_line = "Testfield:u16:dunno";
+        let parsed_line = parse_config_line(conf_line);
+        assert_eq!(parsed_line.0, "Testfield");
+        assert_eq!(parsed_line.1, "u16");
+        assert_eq!(parsed_line.2, Format::Norm);
     }
 }
