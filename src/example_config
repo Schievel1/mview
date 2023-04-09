@@ -1,7 +1,7 @@
 Shouldbehello:String:5
 SomeOtherData:u8
-SomeMoreData:bool8
-SomeMoreData:u8
+SomeMoreData:bool8# comment
+SomeMoreData:u8  # another
 Shouldbetest:String:4
 EvenMoreData:String:3
 # Field0(bool1):bool1

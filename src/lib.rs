@@ -1,3 +1,4 @@
+#![feature(string_remove_matches)]
 use anyhow::{Context, Result};
 use std::fmt::{Binary, Debug, Display};
 use std::{io::Write, mem::size_of};
@@ -181,7 +182,17 @@ pub fn print_statistics(
 }
 
 pub fn parse_config_line(conf_line: &str) -> Result<(&str, &str, Format, usize)> {
-    let (fieldname, rest) = conf_line
+    // discard comments and whitespaces
+    let line = match conf_line.split_once('#') {
+        Some(s) => s.0,
+        None => conf_line,
+    };
+    // split off any remaining whitespace
+    let line = match line.split_once(' ') {
+        Some(s) => s.0,
+        None => line,
+    };
+    let (fieldname, rest) = line
         .split_once(':')
         .context("Syntax error in config, could not find : in line.")?;
     let (val_type, rest) = match rest.split_once(':') {

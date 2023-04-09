@@ -1,29 +1,30 @@
 #+title: Mview Readme
 
 * What is Mview?
-mview (Mask viewer) is a program is the style of Unix coreutils that lets you view raw data though a mask.
+mview (Mask viewer) is a program in the style of Unix coreutils that lets you view raw data though a mask.
 The mask is configurable and supports the common data types.
 Of course mview is written in Rust and therefore blazingly fast. ;-)
 
 One of mview's original applications was viewing messages that come from network. E.g. when you have an embedded device that sends it status via network over and over, Mview can read those messages and present them in a human readable way.
-But mview is very versatile and as many other application, see examples below.
+But mview is very versatile and has many other applications, see examples below.
 
 * Examples
 ** Watching network messages in a human readable way
-Let's say we have a socket that listens on port 3000. This can be simulated with netcat. We can read from that socket and pipe the output to mview:
+Let's say we have a socket that listens on port 3000. This can be simulated with ~netcat~. We can read from that socket and pipe the output to mview:
 #+begin_src sh
 nc -l -p 3000 | mview -c ./src/example_config --pause 100
 #+end_src
 Where ~--pause 100~ just tells mview to wait with updating its output for 100ms.
-And the example_config is this file:
+And the example_config passed to mview is this file:
 #+begin_src sh
 MyData1:String:2
 SomeOtherData:u8
 SomeMoreData:bool8
 EvenMoreData:String:3
 #+end_src
-See below for the different datatypes. The first String before the first ~:~ is an arbitrary identifier. You can name that field however you want, for the sake of your own confusion you can also give different fields the same name.
-Now we connect to that socket using netcat again:
+(See below for the different datatypes.)
+The first String before the first ~:~ is an arbitrary identifier. You can name that field however you want, for the sake of your own confusion you can also give different fields the same name.
+Now we connect to that socket using netcat again: (in another terminal)
 #+begin_src sh
 nc localhost 3000
 #+end_src
@@ -39,18 +40,18 @@ SomeOtherData: 51
 SomeMoreData: true
 EvenMoreData: 56
 #+end_src
-Mind that mview is trying to output the third byte it finds in the data it received as a byte. But since we typed =characters= into ~nc~ it will output the ASCII-value of the character 3, which is 51.
+Mind that mview is trying to output the third byte it finds in the data it received as a u8. But since we typed =characters= into ~nc~ it will output the ASCII-value of the character 3, which is 51.
 The type ~bool8~ will interpret a whole byte like a boolean. Like in C anything other than 0 is interpreted as true.
 
-If we typed same more data in that socket, mview would start over and display the next few bytes through that mask.
+If we typed more data in that socket, mview would start over and display the next few bytes through that mask.
 
 ** Decoding a binary file
 Lets say you have a super secret header in a binary file and you are tired of reading raw hexadecimal values.
-Lets make that file first:
+Lets make such a file first:
 #+begin_src sh
 echo hello345test0000000 > ~/myFile
 #+end_src
-Here we are only interested at the past until the 0s start. The 0s represent the rest of the file that comes after the header.
+Here we are only interested at the data before the 0s start. The 0s represent the rest of the file that comes after the header.
 Here is the according config to that:
 #+begin_src
 Shouldbehello:String:5
@@ -68,9 +69,9 @@ SomeMoreData: true
 SomeMoreData: 53
 Shouldbetest: test
 #+end_src
-Instead of using the ~head~ command to get the first 12 bytes of the files, we could use the build in ~--head~ argument with the ~--infile~ to read directly from a file instead of stdin as well:
+Instead of using the ~head~ command to get the first 12 bytes of the file, we could use the build in ~--head~ argument with the ~--infile~ to read directly from a file instead of stdin as well:
 #+begin_src sh
-~ > mview -c /home/pascal/dev/mview/src/example_config --infile ~/myFile --head 12
+~ > mview -c /home/pascal/dev/mview/src/example_config --infile ~/myFile --head 12 # head makes mview read 12 bytes, then exit
 Shouldbehello: hello
 SomeOtherData: 51
 SomeMoreData: true
@@ -82,11 +83,11 @@ Shouldbetest: test
 The tell mview what the mask is, we need to pass a configuration file to it with the ~-c / --config~ argument. The following points are the possible contents of that file.
 ** Comments
 Lines that start with a ~#~ are not evaluated by mview and can be used as comments.
+Also everything that comes after an ~#~ in a line is not evaluated.
 Example:
 #+begin_src
-Myfieldname:String:3 # is evaluated
+Myfieldname:String:3 # this line is evaluated, this comment not
 # A comment that is not evaluated
-Myotherfieldname:String:3 # is also evaluated
 #+end_src
 ** Supported data types
 **** bool1:
@@ -103,7 +104,7 @@ Myfieldname:bool8
 #+end_src
 **** u8, u16, u32, u64, u128, i8, i16 etc.
 Evaluates 8, 16, 32 bits into an integer.
-I think the type names are self-explanatory, if not look the up [[https://doc.rust-lang.org/book/ch03-02-data-types.html#integer-types][here]].
+I think the type names are self-explanatory, if not look them up [[https://doc.rust-lang.org/book/ch03-02-data-types.html#integer-types][here]].
 ***** Example line in config
 #+begin_src
 Myfieldname:i16
@@ -120,13 +121,13 @@ Evaluates a 32 bits / 64 bits into a floating point number.
 Myfieldname:f32
 #+end_src
 **** iarb / uarb
-In order to save a few bits of space sometimes integers don't use full bytes in network messages. Therefore there is this type. The length operator (the number at the end in the config line below) represents the length of that field in =bits=, not byte!
+In order to save a few bits of space sometimes integers don't use full bytes in network messages. Therefore there is this type. The length operator (the number at the end in the config line below) represents the length of that field in =bits=, not bytes!
 ***** Example line in config
 #+begin_src
 Myfieldname:iarb:7
 #+end_src
 **** String
-Read a few bytes of the chunk and display them as ASCII characters. The length operator represents the length in =bytes=, not bit! Only one-byte characters are supported like standard strings in C.
+Read a few bytes of the chunk and display them as ASCII characters. The length operator represents the length in =bytes=, not bits! Only one-byte characters are supported like standard strings in C.
 ***** Example line in config
 #+begin_src
 Myfieldname:String:4
@@ -134,7 +135,7 @@ Myfieldname:String:4
 **** bytegap, bitgap
 Sometimes you want to skip a few bytes and don't display them in the output. You could just fill those with bool8 and bool1, but for tidiness sake there are those types.
 Mview will jump the bytes and bits ahead in a chunk and continue evaluation with the next config line.
-Bytegap takes a length operator in bytes and bitgap takes a length operator in bits.n
+Bytegap takes a length operator in bytes and bitgap takes a length operator in bits.
 ***** Example line in config
 #+begin_src
 Myfieldname:bytegap:2 # a 2 byte wide gap
@@ -142,7 +143,7 @@ Myfieldname:bitgap:4 # a 4 bit wide gap
 #+end_src
 * Byte order
 Because mview is primarily used for decoding network messages, integers that consist of several bytes are evaluated in network byte order (big-endian/ motorola order) by default.
-However the expected byte order can be changed with the ~--le~ flag.
+However, the expected byte order can be changed to little-endian (intel) order with the ~--le~ flag.
 
 * Messages, chunks and fields
 mview receives messages from stdin or a file. It then divides a received message into chunks, where the size of a chunk is determined by the config. (The length of the datatypes added up.)
