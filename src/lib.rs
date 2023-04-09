@@ -1,5 +1,5 @@
-use anyhow::Result;
 use anyhow::Context;
+use anyhow::Result;
 use std::fmt::Binary;
 use std::fmt::{Debug, Display};
 use std::io::Write;
@@ -11,6 +11,8 @@ pub mod write;
 
 pub const MAX_READ_SIZE: usize = 16 * 1024;
 pub const BYTE_TO_BIT: usize = 8;
+pub const HEX_LINE_SIZE: usize = 16; // how many bytes are printed in a line with --rawhex
+pub const BIN_LINE_SIZE: usize = 8; // how many bytes are printed in a line with --rawhex
 
 #[derive(Debug, PartialEq)]
 pub enum Format {
@@ -41,23 +43,43 @@ pub fn size_in_bits<T>() -> usize {
     size_of::<T>() * BYTE_TO_BIT
 }
 
-pub fn print_raw_hex(writer: &mut Box<dyn Write>, chunk: &[u8]) -> Result<()> {
-    for line in chunk.chunks(16) {
+pub fn print_raw_hex(writer: &mut Box<dyn Write>, chunk: &[u8], hex_lines: usize) -> Result<()> {
+    for line in chunk.chunks(HEX_LINE_SIZE) {
         writer
             .write_fmt(format_args!("{:02X?}\n", line))
             .context("Could now write to writer")?;
     }
+    // last chunk has less bytes, so print empty lines
+    if chunk.chunks(HEX_LINE_SIZE).count() < hex_lines {
+        let missing = hex_lines - chunk.chunks(HEX_LINE_SIZE).count();
+        for _ in 0..missing {
+            writer
+                .write_all(b"\n")
+                .context("Could now write to writer")?;
+        }
+    }
     Ok(())
 }
 
-pub fn print_raw_bin(writer: &mut Box<dyn Write>, chunk: &[u8]) -> Result<()> {
-    for line in chunk.chunks(8) {
+pub fn print_raw_bin(writer: &mut Box<dyn Write>, chunk: &[u8], bin_lines: usize) -> Result<()> {
+    for line in chunk.chunks(BIN_LINE_SIZE) {
         for byte in line {
             writer
                 .write_fmt(format_args!("{:08b} ", byte))
                 .context("Could now write to writer")?;
         }
-        writer.write_all(b"\n").context("Could now write to writer")?;
+        writer
+            .write_all(b"\n")
+            .context("Could now write to writer")?;
+    }
+    // last chunk has less bytes, so print empty lines
+    if chunk.chunks(BIN_LINE_SIZE).count() < bin_lines {
+        let missing = bin_lines - chunk.chunks(BIN_LINE_SIZE).count();
+        for _ in 0..missing {
+            writer
+                .write_all(b"\n")
+                .context("Could now write to writer")?;
+        }
     }
     Ok(())
 }
@@ -87,15 +109,16 @@ pub fn count_lines(
     statistics: bool,
     bitpos: bool,
     config_lines: usize,
-    chunk: &[u8],
+    hex_lines: usize,
+    bin_lines: usize,
 ) -> u16 {
-    let mut extra_lines: u16 = config_lines as u16;
-    // count lines and reset cursor position ofter first run
+    let mut extra_lines: u16 = config_lines as u16 + 1; // plus 1 for the last free line after a chunk
+                                                        // count lines and reset cursor position ofter first run
     if rawbin {
-        extra_lines += chunk.chunks(8).count() as u16;
+        extra_lines += bin_lines as u16;
     };
     if rawhex {
-        extra_lines += chunk.chunks(16).count() as u16;
+        extra_lines += hex_lines as u16;
     };
     if timestamp {
         extra_lines += 1;
@@ -122,6 +145,8 @@ pub fn print_additional(
     message_count: u32,
     message_len: u32,
     chunk_count: u32,
+    hex_lines: usize,
+    bin_lines: usize,
 ) -> Result<()> {
     if timestamp {
         print_timestamp(writer)?;
@@ -130,13 +155,15 @@ pub fn print_additional(
         print_statistics(writer, message_count, message_len, chunk_count)?;
     }
     if rawhex {
-        print_raw_hex(writer, chunk)?;
+        print_raw_hex(writer, chunk, hex_lines)?;
     }
     if rawbin {
-        print_raw_bin(writer, chunk)?;
+        print_raw_bin(writer, chunk, bin_lines)?;
     }
     if rawbin || rawhex || timestamp || statistics {
-        writer.write_all(b"\n").context("Could now write to writer")?;
+        writer
+            .write_all(b"\n")
+            .context("Could now write to writer")?;
     }
     Ok(())
 }
@@ -157,7 +184,9 @@ pub fn print_statistics(
 }
 
 pub fn parse_config_line(conf_line: &str) -> Result<(&str, &str, Format, usize)> {
-    let (fieldname, rest) = conf_line.split_once(':').context("Syntax error in config, could not find : in line.")?;
+    let (fieldname, rest) = conf_line
+        .split_once(':')
+        .context("Syntax error in config, could not find : in line.")?;
     let (val_type, rest) = match rest.split_once(':') {
         Some(s) => (s.0, s.1),
         None => (rest, "0"),
@@ -385,52 +414,33 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
     #[test]
     fn test_count_lines_rawbin() {
         // we divide the chunk into 8 byte wide lines, so therefore
-        // this must be 25 / 8 = 3 plus 1 for the last lines
+        // this must be 25 / 8 = 3
+        // plus 1 for the last line
         // plus 1 for the free lines beneath the additional info
         // plus 2 because the config lines are always counted
-        let chunk: [u8; 25] = [0xFF; 25];
-        let conf_lines = 2;
-        assert_eq!(
-            count_lines(true, false, false, false, false, conf_lines, &chunk),
-            7
-        );
+        assert_eq!(count_lines(true, false, false, false, false, 2, 0, 3), 7);
     }
     #[test]
     fn test_count_lines_rawhex() {
         // we divide the chunk into 16 byte wide lines, so therefore
-        // this must be 58 / 16 = 3 plus 1 for the last lines
+        // this must be 58 / 16 = 3
+        // plus 1 for the last line
         // plus 1 for the free lines beneath the additional info
         // plus 2 because the config lines are always counted
-        let chunk: [u8; 58] = [0xFF; 58];
-        let conf_lines = 2;
-        assert_eq!(
-            count_lines(false, true, false, false, false, conf_lines, &chunk),
-            7
-        );
+        assert_eq!(count_lines(false, true, false, false, false, 2, 3, 0), 7);
     }
     #[test]
     fn test_count_lines_bitpos() {
         // plus 2 because the config lines are always counted
-        let chunk: [u8; 2] = [0xFF, 25];
-        let conf_lines = 2;
-        assert_eq!(
-            count_lines(false, false, false, false, true, conf_lines, &chunk),
-            4
-        );
+        // plus 1 for the last line
+        assert_eq!(count_lines(false, false, false, false, true, 2, 0, 0), 5);
     }
     #[test]
     fn test_count_lines_other() {
         // plus 2 because the config lines are always counted
-        let chunk: [u8; 2] = [0xFF, 25];
-        let conf_lines = 2;
-        assert_eq!(
-            count_lines(false, false, true, false, false, conf_lines, &chunk),
-            4
-        );
-        assert_eq!(
-            count_lines(false, false, true, true, false, conf_lines, &chunk),
-            7
-        );
+        // plus 1 for the last line
+        assert_eq!(count_lines(false, false, true, false, false, 2, 0, 0), 5);
+        assert_eq!(count_lines(false, false, true, true, false, 2, 0, 0), 8);
     }
 
     #[test]

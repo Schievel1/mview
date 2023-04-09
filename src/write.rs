@@ -5,8 +5,9 @@ use crate::print_additional;
 use crate::print_bitpos;
 use crate::size_in_bits;
 use crate::Format;
-use anyhow::Result;
+use crate::{BIN_LINE_SIZE, HEX_LINE_SIZE};
 use anyhow::Context;
+use anyhow::Result;
 use bitvec::macros::internal::funty::{Fundamental, Integral};
 use bitvec::prelude::*;
 use core::time;
@@ -53,26 +54,34 @@ pub fn write_loop(
         message_count += 1;
         let message_len = buffer.len().as_u32();
         let mut chunk_count = 0;
+        let chunkiter = buffer
+            .chunks(chunksize)
+            .take(1)
+            .last()
+            .context("Could not get size of chunk.")?;
+        let hex_lines = chunkiter.chunks(HEX_LINE_SIZE).count();
+        let bin_lines = chunkiter.chunks(BIN_LINE_SIZE).count();
         let _: Result<()> = buffer.chunks(chunksize).try_for_each(|chunk| {
             chunk_count += 1;
             let mut stdout = io::stdout();
             if is_stdout && !first_run {
                 execute!(
                     stdout,
-                    cursor::MoveUp(
-                        count_lines(
-                            rawbin,
-                            rawhex,
-                            timestamp,
-                            statistics,
-                            bitpos,
-                            config_lines.len(),
-                            chunk
-                        ) + 1
-                    ), // the +1 is the newline at the end of every chunk
+                    cursor::MoveUp(count_lines(
+                        rawbin,
+                        rawhex,
+                        timestamp,
+                        statistics,
+                        bitpos,
+                        config_lines.len(),
+                        hex_lines,
+                        bin_lines,
+                    )),
                     cursor::MoveToColumn(0),
-                    Clear(ClearType::CurrentLine),
+					// the following is necessary because writing in the terminal with a newline?
+					cursor::MoveDown(1),
                     Clear(ClearType::FromCursorDown),
+					cursor::MoveUp(1),
                 )?;
             }
             print_additional(
@@ -85,6 +94,8 @@ pub fn write_loop(
                 message_count,
                 message_len,
                 chunk_count,
+                hex_lines,
+                bin_lines,
             )?;
             let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
             // strategy: for every config line we call write_line().
@@ -180,14 +191,18 @@ pub fn write_line(
 ) -> Result<()> {
     let c_bits = chunk.view_bits::<Msb0>();
     let (fieldname, val_type, form, len) = parse_config_line(conf_line)?;
-    writer.write_fmt(format_args!("{}", fieldname)).context("Could now write to writer")?;
-    writer.write_all(b": ").context("Could now write to writer")?;
+    writer
+        .write_fmt(format_args!("{}", fieldname))
+        .context("Could now write to writer")?;
+    writer
+        .write_all(b": ")
+        .context("Could now write to writer")?;
     let val_type = val_type.to_lowercase(); // don't care about case fo the letters
     match val_type.as_str() {
         "bool1" => {
             writer
                 .write_fmt(format_args!("{}\n", c_bits[*bitpos_in_chunk]))
-            .context("Could now write to writer")?;
+                .context("Could now write to writer")?;
             *bitpos_in_chunk += 1;
         }
         "bool8" => {
@@ -198,11 +213,11 @@ pub fn write_line(
                 );
                 writer
                     .write_fmt(format_args!("{}\n", myslice[0..8].load::<u8>() > 0))
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             }
             *bitpos_in_chunk += size_in_bits::<u8>();
         }
@@ -254,11 +269,11 @@ pub fn write_line(
                 );
                 writer
                     .write_fmt(format_args!("{}\n", &myslice[0..32].load::<u32>().as_f32()))
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             }
             *bitpos_in_chunk += size_in_bits::<f32>();
         }
@@ -270,11 +285,11 @@ pub fn write_line(
                 );
                 writer
                     .write_fmt(format_args!("{}\n", &myslice[0..64].load::<u64>().as_f64()))
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             }
             *bitpos_in_chunk += size_in_bits::<f64>();
         }
@@ -287,14 +302,16 @@ pub fn write_line(
                             c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<u8>()]
                                 .load::<u8>() as char
                         ))
-            .context("Could now write to writer")?;
+                        .context("Could now write to writer")?;
                     *bitpos_in_chunk += size_in_bits::<u8>();
                 }
-                writer.write_fmt(format_args!("\n")).context("Could now write to writer")?;
+                writer
+                    .write_fmt(format_args!("\n"))
+                    .context("Could now write to writer")?;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             }
         }
         "iarb" => {
@@ -315,12 +332,14 @@ pub fn write_line(
                 } else {
                     target_int = int_bits.load::<i128>();
                 }
-                writer.write_fmt(format_args!("{}\n", target_int)).context("Could now write to writer")?;
+                writer
+                    .write_fmt(format_args!("{}\n", target_int))
+                    .context("Could now write to writer")?;
                 *bitpos_in_chunk += len;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             }
         }
         "uarb" => {
@@ -331,14 +350,15 @@ pub fn write_line(
                     int_bits.set(i, c_bits[*bitpos_in_chunk + i]); // copy the payload over
                 }
                 let target_int = int_bits.load::<i128>();
-                writer.write_fmt(format_args!("{}\n", target_int))
-                      .context("Could now write to writer")?;
+                writer
+                    .write_fmt(format_args!("{}\n", target_int))
+                    .context("Could now write to writer")?;
 
                 *bitpos_in_chunk += len;
             } else {
                 writer
                     .write_all(b"values size is bigger than what is left of that data chunk\n")
-            .context("Could now write to writer")?;
+                    .context("Could now write to writer")?;
             }
         }
         "bytegap" => {
