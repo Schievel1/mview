@@ -1,7 +1,9 @@
 #![feature(string_remove_matches)]
 use anyhow::{Context, Result};
+use args::Args;
 use std::fmt::{Binary, Debug, Display};
-use std::{io::Write, mem::size_of};
+use std::{io::{Write, BufRead, BufReader}, fs::File, mem::size_of};
+use write::Stats;
 
 pub mod args;
 pub mod read;
@@ -35,6 +37,14 @@ fn format_number<T: Display + Debug + Binary>(num: T, format: Format) -> String 
         Format::Hex => format!("0x{:02X?}", num),
         Format::Bin => format!("{:08b}", num),
     }
+}
+
+pub fn read_config(config_path: &str) -> Result<Vec<String>> {
+    Ok(BufReader::new(File::open(config_path)?)
+        .lines()
+        .flatten()
+        .filter(|l| !l.starts_with('#'))
+        .collect())
 }
 
 pub fn size_in_bits<T>() -> usize {
@@ -100,65 +110,50 @@ pub fn print_bitpos(writer: &mut Box<dyn Write>, bitpos: usize) -> Result<()> {
     Ok(())
 }
 
-pub fn count_lines(
-    rawbin: bool,
-    rawhex: bool,
-    timestamp: bool,
-    statistics: bool,
-    bitpos: bool,
-    config_lines: usize,
-    hex_lines: usize,
-    bin_lines: usize,
-) -> u16 {
-    let mut extra_lines: u16 = config_lines as u16 + 1; // plus 1 for the last free line after a chunk
+pub fn count_lines(args: &Args, stats: &Stats, n_conf_lines: usize) -> u16 {
+    let mut extra_lines: u16 = n_conf_lines as u16 + 1; // plus 1 for the last free line after a chunk
                                                         // count lines and reset cursor position ofter first run
-    if rawbin {
-        extra_lines += bin_lines as u16;
+    if args.rawbin {
+        extra_lines += stats.bin_lines as u16;
     };
-    if rawhex {
-        extra_lines += hex_lines as u16;
+    if args.rawhex {
+        extra_lines += stats.hex_lines as u16;
     };
-    if timestamp {
+    if args.timestamp {
         extra_lines += 1;
     };
-    if statistics {
-        extra_lines += 3;
+    if args.print_statistics {
+        extra_lines += 5;
     };
-    if bitpos {
-        extra_lines += config_lines as u16
+    if args.print_bitpos {
+        extra_lines += n_conf_lines as u16
     };
-    if rawbin || rawhex || timestamp || statistics {
+    if args.rawbin || args.rawhex || args.timestamp || args.print_statistics {
         extra_lines += 1;
     }
     extra_lines
 }
 
 pub fn print_additional(
+    args: &Args,
+    stats: &Stats,
     writer: &mut Box<dyn Write>,
-    rawbin: bool,
-    rawhex: bool,
-    timestamp: bool,
-    statistics: bool,
     chunk: &[u8],
-    message_count: u32,
-    message_len: u32,
-    chunk_count: u32,
-    hex_lines: usize,
-    bin_lines: usize,
+    chunksize: usize,
 ) -> Result<()> {
-    if timestamp {
+    if args.timestamp {
         print_timestamp(writer)?;
     }
-    if statistics {
-        print_statistics(writer, message_count, message_len, chunk_count)?;
+    if args.print_statistics {
+        print_statistics(stats, writer, chunksize)?;
     }
-    if rawhex {
-        print_raw_hex(writer, chunk, hex_lines)?;
+    if args.rawhex {
+        print_raw_hex(writer, chunk, stats.hex_lines)?;
     }
-    if rawbin {
-        print_raw_bin(writer, chunk, bin_lines)?;
+    if args.rawbin {
+        print_raw_bin(writer, chunk, stats.bin_lines)?;
     }
-    if rawbin || rawhex || timestamp || statistics {
+    if args.rawbin || args.rawhex || args.timestamp || args.print_statistics {
         writer
             .write_all(b"\n")
             .context("Could now write to writer")?;
@@ -166,16 +161,11 @@ pub fn print_additional(
     Ok(())
 }
 
-pub fn print_statistics(
-    writer: &mut Box<dyn Write>,
-    message_count: u32,
-    message_len: u32,
-    chunk_count: u32,
-) -> Result<()> {
+pub fn print_statistics(stats: &Stats, writer: &mut Box<dyn Write>, chunksize: usize) -> Result<()> {
     writer
         .write_fmt(format_args!(
-            "Message no: {}\nMessage length: {} bytes\nCurrent chunk in this message: {}\n",
-            message_count, message_len, chunk_count
+            "Message no: {}\nMessage length: {} bytes\nChunk length: {} bytes\nCurrent chunk in this message: {}\nChunk starts at byte {} of message\n",
+            stats.message_count, stats.message_len, chunksize, stats.chunk_count, stats.chunk_start
         ))
         .context("Could now write to writer")?;
     Ok(())
@@ -447,7 +437,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
     fn test_count_lines_other() {
         // plus 2 because the config lines are always counted
         // plus 1 for the last line
-        assert_eq!(count_lines(false, false, true, false, false, 2, 0, 0), 5);
+        assert_eq!(count_lines(false, false, true, false, false, 2, 0, 0), 7);
         assert_eq!(count_lines(false, false, true, true, false, 2, 0, 0), 8);
     }
 

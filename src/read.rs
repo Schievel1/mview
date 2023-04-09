@@ -1,13 +1,13 @@
-use crate::MAX_READ_SIZE;
+use crate::{MAX_READ_SIZE, args::Args};
 use crossbeam::channel::Sender;
 use std::{
     fs::File,
     io::{self, BufReader, Read, Result},
 };
 
-pub fn read_loop(infile: &str, write_tx: Sender<Vec<u8>>, read_head: usize) -> Result<()> {
-    let mut reader: Box<dyn Read> = if !infile.is_empty() {
-        Box::new(BufReader::new(File::open(infile)?))
+pub fn read_loop(args: &Args, write_tx: Sender<Vec<u8>>) -> Result<()> {
+    let mut reader: Box<dyn Read> = if !args.infile.is_empty() {
+        Box::new(BufReader::new(File::open(&args.infile)?))
     } else {
         Box::new(BufReader::new(io::stdin()))
     };
@@ -20,8 +20,8 @@ pub fn read_loop(infile: &str, write_tx: Sender<Vec<u8>>, read_head: usize) -> R
             Ok(x) => x,
             Err(_) => break,
         };
-        if read_head > 0 {
-            if write_tx.send(Vec::from(&buffer[..read_head])).is_err() {
+        if args.read_head > 0 {
+            if write_tx.send(Vec::from(&buffer[..args.read_head])).is_err() {
                 break;
             }
             break;

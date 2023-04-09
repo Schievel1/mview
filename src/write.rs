@@ -1,6 +1,7 @@
 use crate::{
-    count_lines, format_number, parse_config_line, print_additional, print_bitpos, size_in_bits,
-    Format, BIN_LINE_SIZE, HEX_LINE_SIZE,
+    args::Args, chunksize_by_config, count_lines, format_number, parse_config_line,
+    print_additional, print_bitpos, read_config, size_in_bits, Format, BIN_LINE_SIZE,
+    HEX_LINE_SIZE,
 };
 use anyhow::{Context, Result};
 use bitvec::{
@@ -9,6 +10,7 @@ use bitvec::{
 };
 use core::time;
 use crossbeam::channel::Receiver;
+use crossterm::style::{self, Color, Stylize};
 use crossterm::{
     cursor, execute,
     terminal::{Clear, ClearType},
@@ -19,31 +21,37 @@ use std::{
     thread,
 };
 
-pub fn write_loop(
-    outfile: &str,
-    rawhex: bool,
-    rawbin: bool,
-    chunksize: usize,
-    offset: usize,
-    bitoffset: usize,
-    write_rx: Receiver<Vec<u8>>,
-    config_lines: &[String],
-    pause: u64,
-    little_endian: bool,
-    timestamp: bool,
-    statistics: bool,
-    bitpos: bool,
-	cursor_jump: bool,
-) -> Result<()> {
+#[derive(Default)]
+pub struct Stats {
+    pub message_count: u32,
+    pub message_len: u32,
+    pub chunk_count: u32,
+    pub chunk_start: u32,
+    pub hex_lines: usize,
+    pub bin_lines: usize,
+}
+pub fn write_loop(args: &Args, write_rx: Receiver<Vec<u8>>) -> Result<()> {
     // break what is read into chunks and apply config lines as masked to it
-    let is_stdout = outfile.is_empty();
+    let is_stdout = args.outfile.is_empty();
     let mut writer: Box<dyn Write> = if !is_stdout {
-        Box::new(BufWriter::new(File::create(outfile)?))
+        Box::new(BufWriter::new(File::create(&args.outfile)?))
     } else {
         Box::new(BufWriter::new(io::stdout()))
     };
     let mut first_run = true;
-    let mut message_count = 0;
+    let mut stats: Stats = Default::default();
+    let config_lines = read_config(&args.config)?;
+    let chunksize_from_config = chunksize_by_config(&config_lines)?; // bits!
+    let mut chunksize = args.chunksize;
+    if chunksize < 1 {
+        // bytes!
+        // if the chunksize from arguments is invalid, get the config chunks
+        chunksize = chunksize_from_config / 8;
+    }
+    if chunksize_from_config % size_in_bits::<u8>() > 0 {
+        eprintln!("{}: Size of config is {} bytes and {} bits. The chunksize is {} bytes.
+this means that some fields in the config will not be considered in the output because chunksize does not match sum of the fields sizes in config.", style::style("WARNING").with(Color::Yellow).bold(), chunksize_from_config / 8, chunksize_from_config % 8, chunksize)
+    }
     loop {
         let buffer = write_rx
             .recv()
@@ -51,58 +59,28 @@ pub fn write_loop(
         if buffer.is_empty() {
             break;
         }
-        message_count += 1;
-        let message_len = buffer.len().as_u32();
-        let mut chunk_count = 0;
+        stats.message_count += 1;
+        stats.message_len = buffer.len().as_u32();
         let chunkiter = buffer
             .chunks(chunksize)
             .take(1)
             .last()
             .context("Could not get size of chunk.")?;
-        let hex_lines = chunkiter.chunks(HEX_LINE_SIZE).count();
-        let bin_lines = chunkiter.chunks(BIN_LINE_SIZE).count();
-        let _: Result<()> = buffer.chunks(chunksize).try_for_each(|chunk| {
-            chunk_count += 1;
-            let mut stdout = io::stdout();
-            if is_stdout && !first_run && cursor_jump {
-                execute!(
-                    stdout,
-                    cursor::MoveUp(count_lines(
-                        rawbin,
-                        rawhex,
-                        timestamp,
-                        statistics,
-                        bitpos,
-                        config_lines.len(),
-                        hex_lines,
-                        bin_lines,
-                    )),
-                    cursor::MoveToColumn(0),
-                    // the following is necessary because writing in the terminal with a newline?
-                    cursor::MoveDown(1),
-                    Clear(ClearType::FromCursorDown),
-                    cursor::MoveUp(1),
-                )?;
+        stats.hex_lines = chunkiter.chunks(HEX_LINE_SIZE).count();
+        stats.bin_lines = chunkiter.chunks(BIN_LINE_SIZE).count();
+        for chunk in buffer.chunks(chunksize) {
+            stats.chunk_start = stats.chunk_count * (chunksize as u32);
+            stats.chunk_count += 1;
+            if is_stdout && !first_run && args.cursor_jump {
+                move_cursor(args, config_lines.len(), &stats)?;
             }
-            print_additional(
-                &mut writer,
-                rawbin,
-                rawhex,
-                timestamp,
-                statistics,
-                chunk,
-                message_count,
-                message_len,
-                chunk_count,
-                hex_lines,
-                bin_lines,
-            )?;
-            let mut bitpos_in_chunk = bitoffset + offset * size_in_bits::<u8>();
+            print_additional(args, &stats, &mut writer, chunk, chunksize)?;
+            let mut bitpos_in_chunk = args.bitoffset + args.offset * size_in_bits::<u8>();
             // strategy: for every config line we call write_line().
             // write_line() will parse the config line, then get the size of the data type it
             // found it that line from the chunk, print it out and advance bitpos_in_chunk accordingly
             for conf_line in config_lines.iter() {
-                if bitpos {
+                if args.print_bitpos {
                     print_bitpos(&mut writer, bitpos_in_chunk)?;
                 }
                 write_line(
@@ -110,18 +88,31 @@ pub fn write_loop(
                     chunk,
                     &mut bitpos_in_chunk,
                     &mut writer,
-                    little_endian,
+                    args.little_endian,
                 )?;
             }
             // print an empty line at the end of every chunk
             writer
                 .write_all(b"\n")
                 .context("Could now write to writer")?;
-            thread::sleep(time::Duration::from_millis(pause));
+            thread::sleep(time::Duration::from_millis(args.pause));
             first_run = false;
-            Ok(())
-        });
+        }
     }
+    Ok(())
+}
+
+pub fn move_cursor(args: &Args, n_conf_lines: usize, stats: &Stats) -> Result<()> {
+    let mut stdout = io::stdout();
+    execute!(
+        stdout,
+        cursor::MoveUp(count_lines(args, &stats, n_conf_lines,)),
+        cursor::MoveToColumn(0),
+        // the following is necessary because writing in the terminal with a newline?
+        cursor::MoveDown(1),
+        Clear(ClearType::FromCursorDown),
+        cursor::MoveUp(1),
+    )?;
     Ok(())
 }
 

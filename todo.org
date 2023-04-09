@@ -19,6 +19,6 @@
 - [X] add option to display numbers in hex, bin
   use :b, :binary (for binary) or :h, :hex or :hexadecimal (for hex) as suffix of the line of an integer in config
 - [X] write readme
-- [ ] add info about chunk start and end in statistics
+- [X] add info about chunk start and end in statistics
 - [X] make graphics in readme over several messages
 - [X] add option to write to stdout like writing to outfile
