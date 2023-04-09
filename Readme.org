@@ -147,7 +147,7 @@ However, the expected byte order can be changed to little-endian (intel) order w
 
 * Messages, chunks and fields
 mview receives messages from stdin or a file. It then divides a received message into chunks, where the size of a chunk is determined by the config. (The length of the datatypes added up.)
-If a datagram socket is read, usually the chunksize is the same like the message size:
+If a datagram socket is read, usually the chunksize is the same like the messages size:
 #+begin_src
 
   +--------------+   +--------------+        +------------------+
@@ -160,7 +160,7 @@ If a datagram socket is read, usually the chunksize is the same like the message
   |              |   |              |------->| Data field 3     |
   +--------------+   +--------------+        +------------------+
 #+end_src
-But if a stream socket is read, or a socket was recorded and that record is fed into mview, mview has no possible way to determine where one message ends and another starts. In this case (when message is longer than chunk size) mview will take the length of a chunk in bytes from the message and display it fields, then continue to take the next length of a chunk from the message and display that until the whole message is processed.
+But if a stream socket is read, or a socket was recorded and that record is fed into mview, mview has no possible way to determine where one message ends and another starts. In this case (when the message is longer than chunk size) mview will take the length of a chunk in bytes from the message and display it fields, then continue to take the next length of a chunk from the message and display that until the whole message is processed.
 #+begin_src
   +--------------+   +--------------+        +------------------+
   |   Message    |   |    Chunk 1   |------->| Data field 1     |
@@ -203,6 +203,29 @@ In case the message size is not a whole multiple of chunk size, the data fields 
                      +--------------+
 
 #+end_src
+In the same way the data fields will be cut off and a message displayed for the fields that have no data will be displayed if the chunksize is bigger than message size:
+#+begin_src
+  +--------------+   +--------------+        +------------------+
+  |   Message    |   |    Chunk 1   |------->| Data field 1     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |-->|              |------->| Data field 2     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |   |              |------->| Data field 3     |
+  |              |   |              |        +------------------+
+  |              |   |              |        +------------------+
+  |              |   |              |------->| Data field 4     |
+  |______________|   |              |        +------------------+
+                     |              |
+                     |              |
+                     |              |
+                     |              |
+                     |              |
+                     +--------------+
+
+#+end_src
+
 Usually the chunk size is calculated from the config file, but it can be set manually with the argument ~-b / --chunksize~. (In bytes) In the case that the sum of the length of the fields in config is bigger than the size from the argument, the message "values size is bigger than what is left of that data chunk" will be displayed for the fields that have no data. If the chunk size from the argument is bigger, the remaining bytes from that chunk will not be evaluated.
 
 * Record to ~--outfile~
