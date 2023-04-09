@@ -33,6 +33,7 @@ pub fn write_loop(
     timestamp: bool,
     statistics: bool,
     bitpos: bool,
+	cursor_jump: bool,
 ) -> Result<()> {
     // break what is read into chunks and apply config lines as masked to it
     let is_stdout = outfile.is_empty();
@@ -63,7 +64,7 @@ pub fn write_loop(
         let _: Result<()> = buffer.chunks(chunksize).try_for_each(|chunk| {
             chunk_count += 1;
             let mut stdout = io::stdout();
-            if is_stdout && !first_run {
+            if is_stdout && !first_run && cursor_jump {
                 execute!(
                     stdout,
                     cursor::MoveUp(count_lines(

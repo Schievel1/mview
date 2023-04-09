@@ -343,3 +343,5 @@ SomeMoreData: values size is bigger than what is left of that data chunk
 Shouldbetest: values size is bigger than what is left of that data chunk
 EvenMoreData: values size is bigger than what is left of that data chunk
 #+end_src
+
+However, it is also possible to use the ~--nojump~ argument instead. This makes mview print to stdout like it does to files.

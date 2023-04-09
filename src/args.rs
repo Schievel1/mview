@@ -15,6 +15,7 @@ pub struct Args {
     pub read_head: usize,
     pub print_statistics: bool,
     pub print_bitpos: bool,
+    pub cursor_jump: bool
 }
 
 impl Args {
@@ -119,6 +120,12 @@ impl Args {
                     .takes_value(false)
                     .help("Print the current position inside a chunk. (For debugging purposes)"),
             )
+            .arg(
+                Arg::with_name("no cursor jumping")
+                    .long("--nojump")
+                    .takes_value(false)
+                    .help("Print to stdout like printing to a file with option --outfile"),
+            )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
@@ -149,6 +156,7 @@ impl Args {
             .unwrap_or(&0);
         let print_statistics = matches.is_present("print statistics");
         let print_bitpos = matches.is_present("print bitposition");
+        let cursor_jump = !matches.is_present("no cursor jumping");
         Self {
             infile,
             outfile,
@@ -164,6 +172,7 @@ impl Args {
             read_head: *read_head,
             print_statistics,
             print_bitpos,
+            cursor_jump,
         }
     }
 }

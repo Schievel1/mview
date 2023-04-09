@@ -21,4 +21,4 @@
 - [X] write readme
 - [ ] add info about chunk start and end in statistics
 - [X] make graphics in readme over several messages
-- [ ] add option to write to stdout like writing to outfile
+- [X] add option to write to stdout like writing to outfile

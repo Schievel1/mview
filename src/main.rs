@@ -26,6 +26,7 @@ fn main() -> Result<()> {
         read_head,
         print_statistics,
         print_bitpos,
+        cursor_jump,
     } = args;
 
     let (write_tx, write_rx) = bounded(1024);
@@ -61,6 +62,7 @@ this means that some fields in the config will not be considered in the output b
             timestamp,
             print_statistics,
             print_bitpos,
+            cursor_jump,
         )
     });
     let read_io_result = read_handle.join().expect("Unable to join read thread");
