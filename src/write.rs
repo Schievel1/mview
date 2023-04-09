@@ -1,24 +1,23 @@
-use crate::count_lines;
-use crate::format_number;
-use crate::parse_config_line;
-use crate::print_additional;
-use crate::print_bitpos;
-use crate::size_in_bits;
-use crate::Format;
-use crate::{BIN_LINE_SIZE, HEX_LINE_SIZE};
-use anyhow::Context;
-use anyhow::Result;
-use bitvec::macros::internal::funty::{Fundamental, Integral};
-use bitvec::prelude::*;
+use crate::{
+    count_lines, format_number, parse_config_line, print_additional, print_bitpos, size_in_bits,
+    Format, BIN_LINE_SIZE, HEX_LINE_SIZE,
+};
+use anyhow::{Context, Result};
+use bitvec::{
+    macros::internal::funty::{Fundamental, Integral},
+    prelude::*,
+};
 use core::time;
 use crossbeam::channel::Receiver;
 use crossterm::{
     cursor, execute,
     terminal::{Clear, ClearType},
 };
-use std::fs::File;
-use std::io::{self, BufWriter, Write};
-use std::thread;
+use std::{
+    fs::File,
+    io::{self, BufWriter, Write},
+    thread,
+};
 
 pub fn write_loop(
     outfile: &str,
@@ -78,10 +77,10 @@ pub fn write_loop(
                         bin_lines,
                     )),
                     cursor::MoveToColumn(0),
-					// the following is necessary because writing in the terminal with a newline?
-					cursor::MoveDown(1),
+                    // the following is necessary because writing in the terminal with a newline?
+                    cursor::MoveDown(1),
                     Clear(ClearType::FromCursorDown),
-					cursor::MoveUp(1),
+                    cursor::MoveUp(1),
                 )?;
             }
             print_additional(

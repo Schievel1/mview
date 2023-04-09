@@ -1,9 +1,6 @@
-use anyhow::Context;
-use anyhow::Result;
-use std::fmt::Binary;
-use std::fmt::{Debug, Display};
-use std::io::Write;
-use std::mem::size_of;
+use anyhow::{Context, Result};
+use std::fmt::{Binary, Debug, Display};
+use std::{io::Write, mem::size_of};
 
 pub mod args;
 pub mod read;

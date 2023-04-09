@@ -1,7 +1,9 @@
 use crate::MAX_READ_SIZE;
 use crossbeam::channel::Sender;
-use std::fs::File;
-use std::io::{self, BufReader, Read, Result};
+use std::{
+    fs::File,
+    io::{self, BufReader, Read, Result},
+};
 
 pub fn read_loop(infile: &str, write_tx: Sender<Vec<u8>>, read_head: usize) -> Result<()> {
     let mut reader: Box<dyn Read> = if !infile.is_empty() {

@@ -2,9 +2,11 @@ use anyhow::Result;
 use crossbeam::channel::bounded;
 use crossterm::style::{self, Color, Stylize};
 use mview::{args::Args, chunksize_by_config, read, size_in_bits, write};
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::thread;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    thread,
+};
 
 fn main() -> Result<()> {
     // get args
@@ -18,7 +20,7 @@ fn main() -> Result<()> {
         bitoffset,
         rawhex,
         rawbin,
-		pause,
+        pause,
         little_endian,
         timestamp,
         read_head,
@@ -54,7 +56,7 @@ this means that some fields in the config will not be considered in the output b
             bitoffset,
             write_rx,
             &config_lines,
-			pause,
+            pause,
             little_endian,
             timestamp,
             print_statistics,
