@@ -1,8 +1,11 @@
-#![feature(string_remove_matches)]
 use anyhow::{Context, Result};
 use args::Args;
 use std::fmt::{Binary, Debug, Display};
-use std::{io::{Write, BufRead, BufReader}, fs::File, mem::size_of};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, Write},
+    mem::size_of,
+};
 use write::Stats;
 
 pub mod args;
@@ -161,7 +164,11 @@ pub fn print_additional(
     Ok(())
 }
 
-pub fn print_statistics(stats: &Stats, writer: &mut Box<dyn Write>, chunksize: usize) -> Result<()> {
+pub fn print_statistics(
+    stats: &Stats,
+    writer: &mut Box<dyn Write>,
+    chunksize: usize,
+) -> Result<()> {
     writer
         .write_fmt(format_args!(
             "Message no: {}\nMessage length: {} bytes\nChunk length: {} bytes\nCurrent chunk in this message: {}\nChunk starts at byte {} of message\n",
@@ -223,6 +230,8 @@ pub fn chunksize_by_config(config_lines: &[String]) -> Result<usize> {
 
 #[cfg(test)]
 mod tests {
+    use crate::{Args, Stats};
+
     use crate::{chunksize_by_config, count_lines, parse_config_line, size_in_bits, Format};
 
     #[test]
@@ -414,31 +423,167 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
         // we divide the chunk into 8 byte wide lines, so therefore
         // this must be 25 / 8 = 3
         // plus 1 for the last line
-        // plus 1 for the free lines beneath the additional info
+        // plus 1 for the free line beneath the additional info
         // plus 2 because the config lines are always counted
-        assert_eq!(count_lines(true, false, false, false, false, 2, 0, 3), 7);
+        let args = Args {
+            infile: "nil".to_string(),
+            outfile: "nil".to_string(),
+            config: "nil".to_string(),
+            chunksize: 0,
+            offset: 0,
+            bitoffset: 0,
+            rawhex: false,
+            rawbin: true,
+            pause: 0,
+            little_endian: false,
+            timestamp: false,
+            read_head: 0,
+            print_statistics: false,
+            print_bitpos: false,
+            cursor_jump: false,
+        };
+        let stats = Stats {
+            message_count: 0,
+            message_len: 0,
+            chunk_count: 0,
+            chunk_start: 0,
+            hex_lines: 0,
+            bin_lines: 3,
+        };
+        assert_eq!(count_lines(&args, &stats, 2), 7);
     }
     #[test]
     fn test_count_lines_rawhex() {
         // we divide the chunk into 16 byte wide lines, so therefore
         // this must be 58 / 16 = 3
         // plus 1 for the last line
-        // plus 1 for the free lines beneath the additional info
+        // plus 1 for the free line beneath the additional info
         // plus 2 because the config lines are always counted
-        assert_eq!(count_lines(false, true, false, false, false, 2, 3, 0), 7);
+        let args = Args {
+            infile: "nil".to_string(),
+            outfile: "nil".to_string(),
+            config: "nil".to_string(),
+            chunksize: 0,
+            offset: 0,
+            bitoffset: 0,
+            rawhex: true,
+            rawbin: false,
+            pause: 0,
+            little_endian: false,
+            timestamp: false,
+            read_head: 0,
+            print_statistics: false,
+            print_bitpos: false,
+            cursor_jump: false,
+        };
+        let stats = Stats {
+            message_count: 0,
+            message_len: 0,
+            chunk_count: 0,
+            chunk_start: 0,
+            hex_lines: 3,
+            bin_lines: 0,
+        };
+        assert_eq!(count_lines(&args, &stats, 2), 7);
     }
     #[test]
     fn test_count_lines_bitpos() {
+        // 2 for every bitpos above the config lines output
         // plus 2 because the config lines are always counted
+        // plus 1 for the free line beneath the additional info
         // plus 1 for the last line
-        assert_eq!(count_lines(false, false, false, false, true, 2, 0, 0), 5);
+        let args = Args {
+            infile: "nil".to_string(),
+            outfile: "nil".to_string(),
+            config: "nil".to_string(),
+            chunksize: 0,
+            offset: 0,
+            bitoffset: 0,
+            rawhex: false,
+            rawbin: false,
+            pause: 0,
+            little_endian: false,
+            timestamp: false,
+            read_head: 0,
+            print_statistics: false,
+            print_bitpos: true,
+            cursor_jump: false,
+        };
+        let stats = Stats {
+            message_count: 0,
+            message_len: 0,
+            chunk_count: 0,
+            chunk_start: 0,
+            hex_lines: 99,
+            bin_lines: 99,
+        };
+        assert_eq!(count_lines(&args, &stats, 2), 5);
     }
     #[test]
-    fn test_count_lines_other() {
+    fn test_count_lines_stats() {
+        // 5 from the stats
         // plus 2 because the config lines are always counted
+        // plus 1 for the free line beneath the additional info
         // plus 1 for the last line
-        assert_eq!(count_lines(false, false, true, false, false, 2, 0, 0), 7);
-        assert_eq!(count_lines(false, false, true, true, false, 2, 0, 0), 8);
+        let args = Args {
+            infile: "nil".to_string(),
+            outfile: "nil".to_string(),
+            config: "nil".to_string(),
+            chunksize: 0,
+            offset: 0,
+            bitoffset: 0,
+            rawhex: false,
+            rawbin: false,
+            pause: 0,
+            little_endian: false,
+            timestamp: false,
+            read_head: 0,
+            print_statistics: true,
+            print_bitpos: false,
+            cursor_jump: false,
+        };
+        let stats = Stats {
+            message_count: 0,
+            message_len: 0,
+            chunk_count: 0,
+            chunk_start: 0,
+            hex_lines: 0,
+            bin_lines: 3,
+        };
+        assert_eq!(count_lines(&args, &stats, 2), 9);
+    }
+    #[test]
+    fn test_count_lines_timestamp() {
+        // 1 from the timestamp
+        // plus 2 because the config lines are always counted
+        // plus 1 for the free line beneath the additional info
+        // plus 1 for the last line
+        let args = Args {
+            infile: "nil".to_string(),
+            outfile: "nil".to_string(),
+            config: "nil".to_string(),
+            chunksize: 0,
+            offset: 0,
+            bitoffset: 0,
+            rawhex: false,
+            rawbin: false,
+            pause: 0,
+            little_endian: false,
+            timestamp: true,
+            read_head: 0,
+            print_statistics: false,
+            print_bitpos: false,
+            cursor_jump: false,
+        };
+        let stats = Stats {
+            message_count: 0,
+            message_len: 0,
+            chunk_count: 0,
+            chunk_start: 0,
+            hex_lines: 0,
+            bin_lines: 3,
+        };
+        assert_eq!(count_lines(&args, &stats, 2), 5);
     }
 
     #[test]
