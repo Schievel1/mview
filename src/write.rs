@@ -268,7 +268,7 @@ pub fn write_line(
                     &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<f32>()],
                 );
                 writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..32].load::<u32>().as_f32()))
+                    .write_fmt(format_args!("{}\n", f32::from_bits(myslice[0..32].load_be::<u32>())))
                     .context("Could now write to writer")?;
             } else {
                 writer
@@ -284,7 +284,7 @@ pub fn write_line(
                     &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<f64>()],
                 );
                 writer
-                    .write_fmt(format_args!("{}\n", &myslice[0..64].load::<u64>().as_f64()))
+                    .write_fmt(format_args!("{}\n", f64::from_bits(myslice[0..64].load_be::<u64>())))
                     .context("Could now write to writer")?;
             } else {
                 writer
