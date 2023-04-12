@@ -479,7 +479,7 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
         // 0xF0FF_F0FF = 4043305215 in dec
-        assert_eq!(output, b"Test: 4043305215\n");
+        assert_eq!(output, format_write_line_output("4043305215").as_bytes());
     }
     #[test]
     fn test_write_line_u32_le() {
@@ -502,7 +502,7 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
         // 0b0000_1111_1111_1111_1111_0000_1111_0000 = 268431600 in dec
-        assert_eq!(output, b"Test: 268431600\n");
+        assert_eq!(output, format_write_line_output("268431600").as_bytes());
     }
     #[test]
     fn test_write_line_u64_be() {
@@ -524,7 +524,7 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
         // 0b1111_0000 1111_0000 1111_1111 0000_1111 0000_0000 1111_0000 1111_1111 0000_0000 = 17361657003418648320 in dec
-        assert_eq!(output, b"Test: 17361657003418648320\n");
+        assert_eq!(output, format_write_line_output("17361657003418648320").as_bytes());
     }
     #[test]
     fn test_write_line_u64_le() {
@@ -546,7 +546,7 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
         // 0b0000_0000 1111_1111 1111_0000 0000_0000 0000_1111 1111_1111 1111_0000 1111_0000 = 72040002120315120 in dec
-        assert_eq!(output, b"Test: 72040002120315120\n");
+        assert_eq!(output, format_write_line_output("72040002120315120").as_bytes());
     }
     #[test]
     fn test_write_line_u128_be() {
@@ -579,7 +579,7 @@ mod tests {
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
 		// 11110000111100001111111100001111000000001111000011111111000000001111111111110000111100001111000011111111000011110000000011110000
 		// = 320266043437590883436287332191935856880 in dec
-        assert_eq!(output, b"Test: 320266043437590883436287332191935856880\n");
+        assert_eq!(output, format_write_line_output("320266043437590883436287332191935856880").as_bytes());
     }
 	#[test]
     fn test_write_line_u128_le() {
@@ -611,6 +611,192 @@ mod tests {
 		// = 319015043502272988035154135038543524080
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
-        assert_eq!(output, b"Test: 319015043502272988035154135038543524080\n");
+        assert_eq!(output, format_write_line_output("319015043502272988035154135038543524080").as_bytes());
+    }
+    #[test]
+    fn test_write_line_i8() {
+        let conf_line = "Test:i8";
+        let chunk: [u8; 10] = [0b1111_0001, 0b0000_1111, 0b0000_1111, 3, 4, 5, 6, 7, 8, 9];
+        let mut bitpos_in_chunk = 7;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+        // 0b10000111 = -241 in dec
+        assert_eq!(output, format_write_line_output("-121").as_bytes());
+    }
+    #[test]
+    fn test_write_line_i16_be() {
+        let conf_line = "Test:i16";
+        let chunk: [u8; 10] = [0b1111_1000, 0b0000_1111, 0b0000_1111, 3, 4, 5, 6, 7, 8, 9];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+        // 0b1000_0000_1111_0000 = -32528 in dec
+        assert_eq!(output, format_write_line_output("-32528").as_bytes());
+    }
+    #[test]
+    fn test_write_line_i16_le() {
+        let conf_line = "Test:i16";
+        let chunk: [u8; 10] = [0b1111_0000, 0b0000_1111, 0b0000_1111, 3, 4, 5, 6, 7, 8, 9];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
+        // 0b1111_0000_0000_0000 = -4096 in dec
+        assert_eq!(output, format_write_line_output("-4096").as_bytes());
+    }
+    #[test]
+    fn test_write_line_i32_be() {
+        let conf_line = "Test:i32";
+        let chunk: [u8; 10] = [
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b1111_0000,
+            5,
+            6,
+            7,
+            8,
+            9,
+        ];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+		// 11110000111100001111111100001111 = -252641521 in dec
+        assert_eq!(output, format_write_line_output("-252641521").as_bytes());
+    }
+    #[test]
+    fn test_write_line_i32_le() {
+        let conf_line = "Test:i32";
+        let chunk: [u8; 10] = [
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_1000,
+            0b1111_0000,
+            5,
+            6,
+            7,
+            8,
+            9,
+        ];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
+        // 0b1000_1111_1111_1111_1111_0000_1111_0000 = -1879052048 in dec
+        assert_eq!(output, b"Test: -1879052048\n");
+    }
+    #[test]
+    fn test_write_line_i64_be() {
+        let conf_line = "Test:i64";
+        let chunk: [u8; 10] = [
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b0000_1111,
+            9,
+        ];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+        // 0b1111_0000 1111_0000 1111_1111 0000_1111 0000_0000 1111_0000 1111_1111 0000_0000 = -1085087070290903296 in dec
+        assert_eq!(output, format_write_line_output("-1085087070290903296").as_bytes());
+    }
+    #[test]
+    fn test_write_line_i64_le() {
+        let conf_line = "Test:i64";
+        let chunk: [u8; 10] = [
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_1000,
+            0b0000_1111,
+            9,
+        ];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
+        // 0b1000_0000 1111_1111 1111_0000 0000_0000 0000_1111 1111_1111 1111_0000 1111_0000 = -9151332034734460688 in dec
+        assert_eq!(output, format_write_line_output("-9151332034734460688").as_bytes());
+    }
+    #[test]
+    fn test_write_line_i128_be() {
+        let conf_line = "Test:i128";
+        let chunk: [u8; 20] = [
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b0000_1111,
+            0b1111_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b0000_1111,
+            0b1111_1111,
+        ];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+		// 11110000111100001111111100001111000000001111000011111111000000001111111111110000111100001111000011111111000011110000000011110000
+		// = -20016323483347580027087275239832354576 in dec
+        assert_eq!(output, format_write_line_output("-20016323483347580027087275239832354576").as_bytes());
+    }
+	#[test]
+    fn test_write_line_i128_le() {
+        let conf_line = "Test:i128";
+        let chunk: [u8; 20] = [
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b0000_1111,
+            0b1111_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b0000_1111,
+            0b1111_1111,
+        ];
+        let mut bitpos_in_chunk = 4;
+		// 11110000000000000000111111111111111100001111000011110000111111110000000011111111111100000000000000001111111111111111000011110000
+		// = 319015043502272988035154135038543524080
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
+        assert_eq!(output, format_write_line_output("-21267323418665475428220472393224687376").as_bytes());
     }
 }
