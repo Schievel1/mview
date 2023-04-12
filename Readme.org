@@ -3,7 +3,7 @@
 * What is Mview?
 mview (Mask viewer) is a program in the style of Unix coreutils that lets you view raw data though a mask.
 The mask is configurable and supports the common data types.
-Of course mview is written in Rust and therefore blazingly fast. ;-)
+Of course mview is written in Rust and therefore 🚀🚀🚀 blazingly fast 🚀🚀🚀.
 
 One of mview's original applications was viewing messages that come from network. E.g. when you have an embedded device that sends it status via network over and over, Mview can read those messages and present them in a human readable way.
 But mview is very versatile and has many other applications, see examples below.
