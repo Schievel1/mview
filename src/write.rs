@@ -59,7 +59,9 @@ this means that some fields in the config will not be considered in the output b
         if buffer.is_empty() {
             break;
         }
+		// get some stats
         stats.message_count += 1;
+		stats.chunk_count = 0;
         stats.message_len = buffer.len().as_u32();
         let chunkiter = buffer
             .chunks(chunksize)
@@ -68,13 +70,19 @@ this means that some fields in the config will not be considered in the output b
             .context("Could not get size of chunk.")?;
         stats.hex_lines = chunkiter.chunks(HEX_LINE_SIZE).count();
         stats.bin_lines = chunkiter.chunks(BIN_LINE_SIZE).count();
+
         for chunk in buffer.chunks(chunksize) {
+			// get some stats
             stats.chunk_start = stats.chunk_count * (chunksize as u32);
             stats.chunk_count += 1;
+
+			// in case we write to stdout, move the cursor back to the start
             if is_stdout && !first_run && args.cursor_jump {
                 move_cursor(args, config_lines.len(), &stats)?;
             }
+
             print_additional(args, &stats, &mut writer, chunk, chunksize)?;
+
             let mut bitpos_in_chunk = args.bitoffset + args.offset * size_in_bits::<u8>();
             // strategy: for every config line we call write_line().
             // write_line() will parse the config line, then get the size of the data type it
@@ -106,7 +114,7 @@ pub fn move_cursor(args: &Args, n_conf_lines: usize, stats: &Stats) -> Result<()
     let mut stdout = io::stdout();
     execute!(
         stdout,
-        cursor::MoveUp(count_lines(args, &stats, n_conf_lines,)),
+        cursor::MoveUp(count_lines(args, &stats, n_conf_lines)),
         cursor::MoveToColumn(0),
         // the following is necessary because writing in the terminal with a newline?
         cursor::MoveDown(1),
@@ -119,7 +127,7 @@ pub fn move_cursor(args: &Args, n_conf_lines: usize, stats: &Stats) -> Result<()
 pub fn write_integer_data<T>(
     bitpos_in_chunk: &usize,
     c_bits: &BitSlice<u8, Msb0>,
-    writer: &mut Box<dyn Write>,
+    writer: &mut dyn Write,
     format: Format,
     little_endian: bool,
 ) -> Result<usize>
@@ -157,10 +165,10 @@ where
 fn write_gap(
     bitpos_in_chunk: &usize,
     c_bits: &BitSlice<u8, Msb0>,
-    writer: &mut Box<dyn Write>,
-    len: usize,
-    typelen: usize,
-) -> Result<usize> {
+    writer: &mut dyn Write,
+    len: usize, // number of typelen to jump ahead
+    typelen: usize, // length of a gap part, 1 bit or 8 bit
+) -> Result<usize> { // how much the bitpos was advanced (the legth of the gap in bits)
     if *bitpos_in_chunk + len * typelen <= c_bits.len() {
         writer
             .write_fmt(format_args!("(gap of {} bit)\n", len * typelen))
@@ -177,7 +185,7 @@ pub fn write_line(
     conf_line: &str,
     chunk: &[u8],
     bitpos_in_chunk: &mut usize,
-    writer: &mut Box<dyn Write>,
+    writer: &mut dyn Write,
     little_endian: bool,
 ) -> Result<()> {
     let c_bits = chunk.view_bits::<Msb0>();
@@ -363,4 +371,88 @@ pub fn write_line(
     writer.flush().context("Could now write to writer")?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::fmt::Display;
+	// this is a wrapper funktion is case we change anything in the future
+	fn format_write_line_output<T: Display>(expected: T) -> String {
+		format!("Test: {}\n", expected)
+	}
+
+    #[test]
+	fn test_write_gap_5bit() {
+		let bitpos_in_chunk = 1;
+		let chunk: [u8; 10] = [0,1,2,3,4,5,6,7,8,9];
+		let c_bits = chunk.view_bits::<Msb0>();
+
+		let mut output = Vec::new();
+		assert_eq!(write_gap(&bitpos_in_chunk, c_bits, &mut output, 5, 1).unwrap(), 5);
+		assert_eq!(output, b"(gap of 5 bit)\n");
+	}
+
+    #[test]
+	fn test_write_line_bool1_true() {
+		let conf_line = "Test:bool1";
+		let chunk: [u8; 10] = [0b10101010,1,2,3,4,5,6,7,8,9];
+		let mut bitpos_in_chunk = 0;
+
+		let mut output = Vec::new();
+		write_line(conf_line,&chunk,&mut bitpos_in_chunk, &mut output, false).unwrap();
+		assert_eq!(output, format_write_line_output("true").as_bytes());
+	}
+    #[test]
+	fn test_write_line_bool1_false() {
+		let conf_line = "Test:bool1";
+		let chunk: [u8; 10] = [0b10101010,1,2,3,4,5,6,7,8,9];
+		let mut bitpos_in_chunk = 1;
+
+		let mut output = Vec::new();
+		write_line(conf_line,&chunk,&mut bitpos_in_chunk, &mut output, false).unwrap();
+		assert_eq!(output, format_write_line_output("false").as_bytes());
+	}
+    #[test]
+	fn test_write_line_bool8_true() {
+		let conf_line = "Test:bool8";
+		let chunk: [u8; 10] = [0b1111_0000,0b0000_1111,0b0000_1111,3,4,5,6,7,8,9];
+		let mut bitpos_in_chunk = 10;
+
+		let mut output = Vec::new();
+		write_line(conf_line,&chunk,&mut bitpos_in_chunk, &mut output, false).unwrap();
+		assert_eq!(output, format_write_line_output("true").as_bytes());
+	}
+    #[test]
+	fn test_write_line_bool8_false() {
+		let conf_line = "Test:bool8";
+		let chunk: [u8; 10] = [0b1111_0000,0b0000_1111,0b0000_1111,3,4,5,6,7,8,9];
+		let mut bitpos_in_chunk = 4;
+
+		let mut output = Vec::new();
+		write_line(conf_line,&chunk,&mut bitpos_in_chunk, &mut output, false).unwrap();
+		assert_eq!(output, format_write_line_output("false").as_bytes());
+	}
+    #[test]
+	fn test_write_line_u8() {
+		let conf_line = "Test:u8";
+		let chunk: [u8; 10] = [0b1111_0000,0b0000_1111,0b0000_1111,3,4,5,6,7,8,9];
+		let mut bitpos_in_chunk = 7;
+
+		let mut output = Vec::new();
+		write_line(conf_line,&chunk,&mut bitpos_in_chunk, &mut output, false).unwrap();
+		// 0b00000111 = 7 in dec
+		assert_eq!(output, format_write_line_output("7").as_bytes());
+	}
+    #[test]
+	fn test_write_line_u16() {
+		let conf_line = "Test:u16";
+		let chunk: [u8; 10] = [0b1111_0000,0b0000_1111,0b0000_1111,3,4,5,6,7,8,9];
+		let mut bitpos_in_chunk = 4;
+
+		let mut output = Vec::new();
+		write_line(conf_line,&chunk,&mut bitpos_in_chunk, &mut output, false).unwrap();
+		// 0b0000_0000_1111_0000 = 240 in dec
+		assert_eq!(output, b"Test: 240\n");
+	}
 }

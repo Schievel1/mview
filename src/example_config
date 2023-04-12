@@ -14,7 +14,7 @@ EvenMoreData:String:3
 # Field7(bool1):bool1
 # Field8(bool8):bool8
 # Two_Bytegap(bytegap2):bytegap:2
-# Four_Bitgap(bitgap4):bitgap:4
+Four_Bitgap(bitgap4):bitgap:4
 # Field9(u8):u8
 # Field10(u16):u16
 # Field11(i32):i32

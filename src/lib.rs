@@ -54,7 +54,7 @@ pub fn size_in_bits<T>() -> usize {
     size_of::<T>() * BYTE_TO_BIT
 }
 
-pub fn print_raw_hex(writer: &mut Box<dyn Write>, chunk: &[u8], hex_lines: usize) -> Result<()> {
+pub fn print_raw_hex(writer: &mut dyn Write, chunk: &[u8], hex_lines: usize) -> Result<()> {
     for line in chunk.chunks(HEX_LINE_SIZE) {
         writer
             .write_fmt(format_args!("{:02X?}\n", line))
@@ -72,7 +72,7 @@ pub fn print_raw_hex(writer: &mut Box<dyn Write>, chunk: &[u8], hex_lines: usize
     Ok(())
 }
 
-pub fn print_raw_bin(writer: &mut Box<dyn Write>, chunk: &[u8], bin_lines: usize) -> Result<()> {
+pub fn print_raw_bin(writer: &mut dyn Write, chunk: &[u8], bin_lines: usize) -> Result<()> {
     for line in chunk.chunks(BIN_LINE_SIZE) {
         for byte in line {
             writer
@@ -95,14 +95,14 @@ pub fn print_raw_bin(writer: &mut Box<dyn Write>, chunk: &[u8], bin_lines: usize
     Ok(())
 }
 
-pub fn print_timestamp(writer: &mut Box<dyn Write>) -> Result<()> {
+pub fn print_timestamp(writer: &mut dyn Write) -> Result<()> {
     writer
         .write_fmt(format_args!("{}\n", chrono::offset::Local::now()))
         .context("Could now write to writer")?;
     Ok(())
 }
 
-pub fn print_bitpos(writer: &mut Box<dyn Write>, bitpos: usize) -> Result<()> {
+pub fn print_bitpos(writer: &mut dyn Write, bitpos: usize) -> Result<()> {
     writer
         .write_fmt(format_args!(
             "byte {}, bit {}\n",
@@ -140,7 +140,7 @@ pub fn count_lines(args: &Args, stats: &Stats, n_conf_lines: usize) -> u16 {
 pub fn print_additional(
     args: &Args,
     stats: &Stats,
-    writer: &mut Box<dyn Write>,
+    writer: &mut dyn Write,
     chunk: &[u8],
     chunksize: usize,
 ) -> Result<()> {
@@ -166,7 +166,7 @@ pub fn print_additional(
 
 pub fn print_statistics(
     stats: &Stats,
-    writer: &mut Box<dyn Write>,
+    writer: &mut dyn Write,
     chunksize: usize,
 ) -> Result<()> {
     writer
