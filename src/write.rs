@@ -449,6 +449,28 @@ mod tests {
         assert_eq!(output, format_write_line_output("7").as_bytes());
     }
     #[test]
+    fn test_write_line_u8_hex() {
+        let conf_line = "Test:u8:h";
+        let chunk: [u8; 10] = [0b1111_0000, 0b0000_1111, 0b0000_1111, 3, 4, 5, 6, 7, 8, 9];
+        let mut bitpos_in_chunk = 7;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+        // 0b00000111 = 7 in dec
+        assert_eq!(output, format_write_line_output("0x07").as_bytes());
+    }
+    #[test]
+    fn test_write_line_u8_bin() {
+        let conf_line = "Test:u8:b";
+        let chunk: [u8; 10] = [0b1111_0000, 0b0000_1111, 0b0000_1111, 3, 4, 5, 6, 7, 8, 9];
+        let mut bitpos_in_chunk = 7;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+        // 0b00000111 = 7 in dec
+        assert_eq!(output, format_write_line_output("00000111").as_bytes());
+    }
+    #[test]
     fn test_write_line_u16_be() {
         let conf_line = "Test:u16";
         let chunk: [u8; 10] = [0b1111_0000, 0b0000_1111, 0b0000_1111, 3, 4, 5, 6, 7, 8, 9];
