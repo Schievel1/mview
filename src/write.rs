@@ -819,7 +819,6 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
 		// 11000000010011001100110011001101 = -3.2
-		dbg!(&output);
         assert_eq!(output, format_write_line_output("-3.2").as_bytes());
     }
     #[test]
@@ -842,7 +841,27 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
 		// 1100000000001001100110011001100110011001100110011001100110011010 = -3.1999999999999997
-		dbg!(&output);
         assert_eq!(output, format_write_line_output("-3.1999999999999997").as_bytes());
+    }
+    #[test]
+    fn test_write_line_string() {
+        let conf_line = "Test:string:3";
+        let chunk: [u8; 10] = [
+            0b0000_1100,
+            b'a',
+            b'b',
+            b'c',
+            0b1001_1001,
+            0b1001_1001,
+            0b1001_1001,
+            0b1001_1001,
+            0b1001_1001,
+            9,
+        ];
+        let mut bitpos_in_chunk = 8;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+        assert_eq!(output, format_write_line_output("abc").as_bytes());
     }
 }
