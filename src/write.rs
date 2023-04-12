@@ -864,4 +864,48 @@ mod tests {
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
         assert_eq!(output, format_write_line_output("abc").as_bytes());
     }
+    #[test]
+    fn test_write_line_uarb() {
+        let conf_line = "Test:uarb:9";
+        let chunk: [u8; 10] = [
+            0b0000_1100,
+            0b1001_1001,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b0000_1111,
+            0b1001_1001,
+            0b1001_1001,
+        ];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+		// 110010011 = 403
+        assert_eq!(output, format_write_line_output("403").as_bytes());
+    }
+    #[test]
+    fn test_write_line_iarb() {
+        let conf_line = "Test:iarb:9";
+        let chunk: [u8; 10] = [
+            0b0000_1100,
+            0b1001_1001,
+            0b1111_0000,
+            0b1111_0000,
+            0b0000_1111,
+            0b0000_1111,
+            0b1111_0000,
+            0b0000_1111,
+            0b1001_1001,
+            0b1001_1001,
+        ];
+        let mut bitpos_in_chunk = 4;
+
+        let mut output = Vec::new();
+        write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
+		// 110010011 = -109
+        assert_eq!(output, format_write_line_output("-109").as_bytes());
+    }
 }
