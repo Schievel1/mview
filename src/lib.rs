@@ -230,6 +230,8 @@ pub fn chunksize_by_config(config_lines: &[String]) -> Result<usize> {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{Duration, TimeZone, Local};
+
     use super::*;
 
     #[test]
@@ -671,5 +673,13 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
         let bin_lines = 2;
         print_raw_bin(&mut output, &chunk, bin_lines).unwrap();
         assert_eq!(output, b"00000001 00000010 00000011 00000100 00000101 00000110 00000111 00001000 \n00001001 00001010 \n");
+    }
+    #[test]
+    fn test_print_timestamp() {
+        let mut output = Vec::new();
+        print_timestamp(&mut output).unwrap();
+        let output = String::from_utf8(output).unwrap();
+        let dt = Local.datetime_from_str(&output, "%Y-%m-%d %H:%M:%S%.f %:z\n").unwrap();
+        assert!(chrono::offset::Local::now() - dt < Duration::seconds(10));
     }
 }
