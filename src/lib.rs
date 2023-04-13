@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use args::Args;
-use std::fmt::{Binary, Debug, Display};
+use std::fmt::{Binary, Debug, Display, UpperHex};
 use std::{
     fs::File,
     io::{BufRead, BufReader, Write},
@@ -34,10 +34,10 @@ impl Format {
     }
 }
 
-fn format_number<T: Display + Debug + Binary>(num: T, format: Format) -> String {
+fn format_number<T: Display + Debug + Binary + UpperHex>(num: T, format: Format) -> String {
     match format {
         Format::Norm => format!("{}", num),
-        Format::Hex => format!("0x{:02X?}", num),
+        Format::Hex => format!("0x{:02X}", num),
         Format::Bin => format!("{:08b}", num),
     }
 }
@@ -230,9 +230,7 @@ pub fn chunksize_by_config(config_lines: &[String]) -> Result<usize> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Args, Stats};
-
-    use crate::{chunksize_by_config, count_lines, parse_config_line, size_in_bits, Format};
+    use super::*;
 
     #[test]
     fn test_chunksize_by_config_bool1() {
@@ -650,5 +648,28 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
         assert_eq!(parsed_line.0, "Testfield");
         assert_eq!(parsed_line.1, "u16");
         assert_eq!(parsed_line.2, Format::Norm);
+    }
+    #[test]
+    fn test_print_raw_hex() {
+        let chunk: [u8; 20] = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
+        ];
+
+        let mut output = Vec::new();
+        let hex_lines = 2;
+        print_raw_hex(&mut output, &chunk, hex_lines).unwrap();
+        assert_eq!(output, b"[01, 02, 03, 04, 05, 06, 07, 08, 09, 0A, 01, 02, 03, 04, 05, 06]\n[07, 08, 09, 0A]\n");
+    }
+    #[test]
+    fn test_print_raw_bin() {
+        let chunk: [u8; 10] = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A
+        ];
+
+        let mut output = Vec::new();
+        let bin_lines = 2;
+        print_raw_bin(&mut output, &chunk, bin_lines).unwrap();
+        assert_eq!(output, b"00000001 00000010 00000011 00000100 00000101 00000110 00000111 00001000 \n00001001 00001010 \n");
     }
 }

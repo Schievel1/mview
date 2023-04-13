@@ -23,6 +23,6 @@
 - [X] make graphics in readme over several messages
 - [X] add option to write to stdout like writing to outfile
 - [ ] test output for mix of config lines
-- [ ] test formatting function
+- [X] test formatting function
 - [ ] test print_stats, print_raw_bin etc. functions
 - [X] at least for the gaaps and integer function also assert in tests that the right bitpos is returned
