@@ -95,6 +95,24 @@ pub fn print_raw_bin(writer: &mut dyn Write, chunk: &[u8], bin_lines: usize) -> 
     Ok(())
 }
 
+pub fn print_raw_ascii(writer: &mut dyn Write, chunk: &[u8], hex_lines: usize) -> Result<()> {
+    for line in chunk.chunks(HEX_LINE_SIZE) {
+        writer
+            .write_fmt(format_args!("[ {} ]\n", String::from_utf8_lossy(line).chars().filter(|c| *c != '\n').collect::<String>()))
+            .context("Could now write to writer")?;
+    }
+    // last chunk has less bytes, so print empty lines
+    if chunk.chunks(HEX_LINE_SIZE).count() < hex_lines {
+        let missing = hex_lines - chunk.chunks(HEX_LINE_SIZE).count();
+        for _ in 0..missing {
+            writer
+                .write_all(b"\n")
+                .context("Could now write to writer")?;
+        }
+    }
+    Ok(())
+}
+
 pub fn print_timestamp(writer: &mut dyn Write) -> Result<()> {
     writer
         .write_fmt(format_args!("{}\n", chrono::offset::Local::now()))
@@ -116,10 +134,13 @@ pub fn print_bitpos(writer: &mut dyn Write, bitpos: usize) -> Result<()> {
 pub fn count_lines(args: &Args, stats: &Stats, n_conf_lines: usize) -> u16 {
     let mut extra_lines: u16 = n_conf_lines as u16 + 1; // plus 1 for the last free line after a chunk
                                                         // count lines and reset cursor position ofter first run
+    if args.rawhex {
+        extra_lines += stats.hex_lines as u16;
+    };
     if args.rawbin {
         extra_lines += stats.bin_lines as u16;
     };
-    if args.rawhex {
+    if args.rawascii {
         extra_lines += stats.hex_lines as u16;
     };
     if args.timestamp {
@@ -131,7 +152,7 @@ pub fn count_lines(args: &Args, stats: &Stats, n_conf_lines: usize) -> u16 {
     if args.print_bitpos {
         extra_lines += n_conf_lines as u16
     };
-    if args.rawbin || args.rawhex || args.timestamp || args.print_statistics {
+    if args.rawbin || args.rawhex || args.timestamp || args.print_statistics || args.rawascii {
         extra_lines += 1;
     }
     extra_lines
@@ -156,6 +177,9 @@ pub fn print_additional(
     if args.rawbin {
         print_raw_bin(writer, chunk, stats.bin_lines)?;
     }
+    if args.rawascii {
+        print_raw_ascii(writer, chunk, stats.hex_lines)?;
+    }
     if args.rawbin || args.rawhex || args.timestamp || args.print_statistics {
         writer
             .write_all(b"\n")
@@ -164,11 +188,7 @@ pub fn print_additional(
     Ok(())
 }
 
-pub fn print_statistics(
-    stats: &Stats,
-    writer: &mut dyn Write,
-    chunksize: usize,
-) -> Result<()> {
+pub fn print_statistics(stats: &Stats, writer: &mut dyn Write, chunksize: usize) -> Result<()> {
     writer
         .write_fmt(format_args!(
             "Message no: {}\nMessage length: {} bytes\nChunk length: {} bytes\nCurrent chunk in this message: {}\nChunk starts at byte {} of message\n",
@@ -198,7 +218,7 @@ pub fn parse_config_line(conf_line: &str) -> Result<(&str, &str, Format, usize)>
     };
     // at this point, rest could be a letter (to print in hex or binary)
     // or a number (for stringlength)
-    let form = Format::from_str(&rest);
+    let form = Format::from_str(rest);
     let mut len = 0;
     if let Ok(n) = rest.parse() {
         len = n;
@@ -230,7 +250,7 @@ pub fn chunksize_by_config(config_lines: &[String]) -> Result<usize> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, TimeZone, Local};
+    use chrono::{Duration, Local, TimeZone};
 
     use super::*;
 
@@ -434,6 +454,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             bitoffset: 0,
             rawhex: false,
             rawbin: true,
+            rawascii: false,
             pause: 0,
             little_endian: false,
             timestamp: false,
@@ -468,6 +489,42 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             bitoffset: 0,
             rawhex: true,
             rawbin: false,
+            rawascii: false,
+            pause: 0,
+            little_endian: false,
+            timestamp: false,
+            read_head: 0,
+            print_statistics: false,
+            print_bitpos: false,
+            cursor_jump: false,
+        };
+        let stats = Stats {
+            message_count: 0,
+            message_len: 0,
+            chunk_count: 0,
+            chunk_start: 0,
+            hex_lines: 3,
+            bin_lines: 0,
+        };
+        assert_eq!(count_lines(&args, &stats, 2), 7);
+    }
+    #[test]
+    fn test_count_lines_rawascii() {
+        // we divide the chunk into 16 byte wide lines, so therefore
+        // this must be 58 / 16 = 3
+        // plus 1 for the last line
+        // plus 1 for the free line beneath the additional info
+        // plus 2 because the config lines are always counted
+        let args = Args {
+            infile: "nil".to_string(),
+            outfile: "nil".to_string(),
+            config: "nil".to_string(),
+            chunksize: 0,
+            offset: 0,
+            bitoffset: 0,
+            rawhex: false,
+            rawbin: false,
+            rawascii: true,
             pause: 0,
             little_endian: false,
             timestamp: false,
@@ -501,6 +558,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             bitoffset: 0,
             rawhex: false,
             rawbin: false,
+            rawascii: false,
             pause: 0,
             little_endian: false,
             timestamp: false,
@@ -534,6 +592,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             bitoffset: 0,
             rawhex: false,
             rawbin: false,
+            rawascii: false,
             pause: 0,
             little_endian: false,
             timestamp: false,
@@ -567,6 +626,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             bitoffset: 0,
             rawhex: false,
             rawbin: false,
+            rawascii: false,
             pause: 0,
             little_endian: false,
             timestamp: true,
@@ -654,20 +714,21 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
     #[test]
     fn test_print_raw_hex() {
         let chunk: [u8; 20] = [
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x01, 0x02, 0x03, 0x04,
+            0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
         ];
 
         let mut output = Vec::new();
         let hex_lines = 2;
         print_raw_hex(&mut output, &chunk, hex_lines).unwrap();
-        assert_eq!(output, b"[01, 02, 03, 04, 05, 06, 07, 08, 09, 0A, 01, 02, 03, 04, 05, 06]\n[07, 08, 09, 0A]\n");
+        assert_eq!(
+            output,
+            b"[01, 02, 03, 04, 05, 06, 07, 08, 09, 0A, 01, 02, 03, 04, 05, 06]\n[07, 08, 09, 0A]\n"
+        );
     }
     #[test]
     fn test_print_raw_bin() {
-        let chunk: [u8; 10] = [
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A
-        ];
+        let chunk: [u8; 10] = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A];
 
         let mut output = Vec::new();
         let bin_lines = 2;
@@ -679,7 +740,9 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
         let mut output = Vec::new();
         print_timestamp(&mut output).unwrap();
         let output = String::from_utf8(output).unwrap();
-        let dt = Local.datetime_from_str(&output, "%Y-%m-%d %H:%M:%S%.f %:z\n").unwrap();
+        let dt = Local
+            .datetime_from_str(&output, "%Y-%m-%d %H:%M:%S%.f %:z\n")
+            .unwrap();
         assert!(chrono::offset::Local::now() - dt < Duration::seconds(10));
     }
 }

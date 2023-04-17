@@ -9,6 +9,7 @@ pub struct Args {
     pub bitoffset: usize,
     pub rawhex: bool,
     pub rawbin: bool,
+    pub rawascii: bool,
     pub pause: u64,
     pub little_endian: bool,
     pub timestamp: bool,
@@ -80,6 +81,12 @@ impl Args {
                     .help("Print raw bindump of the chunk at top of output"),
             )
             .arg(
+                Arg::with_name("rawascii")
+                    .long("rawascii")
+                    .takes_value(false)
+                    .help("Print raw ascii of the chunk at top of output"),
+            )
+            .arg(
                 Arg::with_name("pause")
                     .long("pause")
                     .short('p')
@@ -144,6 +151,7 @@ impl Args {
             .unwrap_or(&0);
         let rawhex = matches.is_present("rawhex");
         let rawbin = matches.is_present("rawbin");
+        let rawascii = matches.is_present("rawascii");
         let pause = matches
             .try_get_one::<u64>("pause")
             .unwrap_or_default()
@@ -166,6 +174,7 @@ impl Args {
             bitoffset: *bitoffset,
             rawhex,
             rawbin,
+            rawascii,
             pause: *pause,
             little_endian,
             timestamp,

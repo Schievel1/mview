@@ -71,6 +71,12 @@ this means that some fields in the config will not be considered in the output b
         stats.hex_lines = chunkiter.chunks(HEX_LINE_SIZE).count();
         stats.bin_lines = chunkiter.chunks(BIN_LINE_SIZE).count();
 
+        // when we read from stdin, return is pressed by the user after typing in a message.
+        // In this case we need to get rid of the extra line
+        if is_stdout && !first_run && args.cursor_jump && args.infile.is_empty() {
+            execute!(io::stdout(), cursor::MoveUp(1))?;
+        }
+
         for chunk in buffer.chunks(chunksize) {
             // get some stats
             stats.chunk_start = stats.chunk_count * (chunksize as u32);
@@ -114,7 +120,7 @@ pub fn move_cursor(args: &Args, n_conf_lines: usize, stats: &Stats) -> Result<()
     let mut stdout = io::stdout();
     execute!(
         stdout,
-        cursor::MoveUp(count_lines(args, &stats, n_conf_lines)),
+        cursor::MoveUp(count_lines(args, stats, n_conf_lines)),
         cursor::MoveToColumn(0),
         // the following is necessary because writing in the terminal with a newline?
         cursor::MoveDown(1),
@@ -268,7 +274,10 @@ pub fn write_line(
                     &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<f32>()],
                 );
                 writer
-                    .write_fmt(format_args!("{}\n", f32::from_bits(myslice[0..32].load_be::<u32>())))
+                    .write_fmt(format_args!(
+                        "{}\n",
+                        f32::from_bits(myslice[0..32].load_be::<u32>())
+                    ))
                     .context("Could now write to writer")?;
             } else {
                 writer
@@ -284,7 +293,10 @@ pub fn write_line(
                     &c_bits[*bitpos_in_chunk..*bitpos_in_chunk + size_in_bits::<f64>()],
                 );
                 writer
-                    .write_fmt(format_args!("{}\n", f64::from_bits(myslice[0..64].load_be::<u64>())))
+                    .write_fmt(format_args!(
+                        "{}\n",
+                        f64::from_bits(myslice[0..64].load_be::<u64>())
+                    ))
                     .context("Could now write to writer")?;
             } else {
                 writer
@@ -546,7 +558,10 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
         // 0b1111_0000 1111_0000 1111_1111 0000_1111 0000_0000 1111_0000 1111_1111 0000_0000 = 17361657003418648320 in dec
-        assert_eq!(output, format_write_line_output("17361657003418648320").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("17361657003418648320").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_u64_le() {
@@ -568,7 +583,10 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
         // 0b0000_0000 1111_1111 1111_0000 0000_0000 0000_1111 1111_1111 1111_0000 1111_0000 = 72040002120315120 in dec
-        assert_eq!(output, format_write_line_output("72040002120315120").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("72040002120315120").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_u128_be() {
@@ -599,11 +617,14 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-		// 11110000111100001111111100001111000000001111000011111111000000001111111111110000111100001111000011111111000011110000000011110000
-		// = 320266043437590883436287332191935856880 in dec
-        assert_eq!(output, format_write_line_output("320266043437590883436287332191935856880").as_bytes());
+        // 11110000111100001111111100001111000000001111000011111111000000001111111111110000111100001111000011111111000011110000000011110000
+        // = 320266043437590883436287332191935856880 in dec
+        assert_eq!(
+            output,
+            format_write_line_output("320266043437590883436287332191935856880").as_bytes()
+        );
     }
-	#[test]
+    #[test]
     fn test_write_line_u128_le() {
         let conf_line = "Test:u128";
         let chunk: [u8; 20] = [
@@ -629,11 +650,14 @@ mod tests {
             0b1111_1111,
         ];
         let mut bitpos_in_chunk = 4;
-		// 11110000000000000000111111111111111100001111000011110000111111110000000011111111111100000000000000001111111111111111000011110000
-		// = 319015043502272988035154135038543524080
+        // 11110000000000000000111111111111111100001111000011110000111111110000000011111111111100000000000000001111111111111111000011110000
+        // = 319015043502272988035154135038543524080
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
-        assert_eq!(output, format_write_line_output("319015043502272988035154135038543524080").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("319015043502272988035154135038543524080").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_i8() {
@@ -687,7 +711,7 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-		// 11110000111100001111111100001111 = -252641521 in dec
+        // 11110000111100001111111100001111 = -252641521 in dec
         assert_eq!(output, format_write_line_output("-252641521").as_bytes());
     }
     #[test]
@@ -732,7 +756,10 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
         // 0b1111_0000 1111_0000 1111_1111 0000_1111 0000_0000 1111_0000 1111_1111 0000_0000 = -1085087070290903296 in dec
-        assert_eq!(output, format_write_line_output("-1085087070290903296").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("-1085087070290903296").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_i64_le() {
@@ -754,7 +781,10 @@ mod tests {
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
         // 0b1000_0000 1111_1111 1111_0000 0000_0000 0000_1111 1111_1111 1111_0000 1111_0000 = -9151332034734460688 in dec
-        assert_eq!(output, format_write_line_output("-9151332034734460688").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("-9151332034734460688").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_i128_be() {
@@ -785,11 +815,14 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-		// 11110000111100001111111100001111000000001111000011111111000000001111111111110000111100001111000011111111000011110000000011110000
-		// = -20016323483347580027087275239832354576 in dec
-        assert_eq!(output, format_write_line_output("-20016323483347580027087275239832354576").as_bytes());
+        // 11110000111100001111111100001111000000001111000011111111000000001111111111110000111100001111000011111111000011110000000011110000
+        // = -20016323483347580027087275239832354576 in dec
+        assert_eq!(
+            output,
+            format_write_line_output("-20016323483347580027087275239832354576").as_bytes()
+        );
     }
-	#[test]
+    #[test]
     fn test_write_line_i128_le() {
         let conf_line = "Test:i128";
         let chunk: [u8; 20] = [
@@ -815,11 +848,14 @@ mod tests {
             0b1111_1111,
         ];
         let mut bitpos_in_chunk = 4;
-		// 11110000000000000000111111111111111100001111000011110000111111110000000011111111111100000000000000001111111111111111000011110000
-		// = 319015043502272988035154135038543524080
+        // 11110000000000000000111111111111111100001111000011110000111111110000000011111111111100000000000000001111111111111111000011110000
+        // = 319015043502272988035154135038543524080
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, true).unwrap();
-        assert_eq!(output, format_write_line_output("-21267323418665475428220472393224687376").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("-21267323418665475428220472393224687376").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_f32() {
@@ -840,7 +876,7 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-		// 11000000010011001100110011001101 = -3.2
+        // 11000000010011001100110011001101 = -3.2
         assert_eq!(output, format_write_line_output("-3.2").as_bytes());
     }
     #[test]
@@ -862,8 +898,11 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-		// 1100000000001001100110011001100110011001100110011001100110011010 = -3.1999999999999997
-        assert_eq!(output, format_write_line_output("-3.1999999999999997").as_bytes());
+        // 1100000000001001100110011001100110011001100110011001100110011010 = -3.1999999999999997
+        assert_eq!(
+            output,
+            format_write_line_output("-3.1999999999999997").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_string() {
@@ -905,7 +944,7 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-		// 110010011 = 403
+        // 110010011 = 403
         assert_eq!(output, format_write_line_output("403").as_bytes());
     }
     #[test]
@@ -927,7 +966,7 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-		// 110010011 = -109
+        // 110010011 = -109
         assert_eq!(output, format_write_line_output("-109").as_bytes());
     }
     #[test]
@@ -949,7 +988,10 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-        assert_eq!(output, format_write_line_output("(gap of 8 bit)").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("(gap of 8 bit)").as_bytes()
+        );
     }
     #[test]
     fn test_write_line_bitgap() {
@@ -970,6 +1012,9 @@ mod tests {
 
         let mut output = Vec::new();
         write_line(conf_line, &chunk, &mut bitpos_in_chunk, &mut output, false).unwrap();
-        assert_eq!(output, format_write_line_output("(gap of 1 bit)").as_bytes());
+        assert_eq!(
+            output,
+            format_write_line_output("(gap of 1 bit)").as_bytes()
+        );
     }
 }

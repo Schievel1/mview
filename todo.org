@@ -26,3 +26,6 @@
 - [X] test formatting function
 - [ ] test print_stats, print_raw_bin etc. functions
 - [X] at least for the gaaps and integer function also assert in tests that the right bitpos is returned
+- [X] add possibility to dump whole chunk as ASCII (like rawbin and rawhex options)
+- [ ] add option to filter newline characters from strings
+  When new line chars are contained in string data and we print that out, it mangles output.
