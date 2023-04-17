@@ -101,6 +101,7 @@ jobs:
           path: ./mview-linux-armv7-${{ env.latest_tag }}
           
   make-release:
+    permissions: write-all
     if: ${{ always() }}
     needs: [macos, windows, linux]
     runs-on: ubuntu-latest
