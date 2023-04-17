@@ -16,7 +16,8 @@ pub struct Args {
     pub read_head: usize,
     pub print_statistics: bool,
     pub print_bitpos: bool,
-    pub cursor_jump: bool
+    pub cursor_jump: bool,
+    pub filter_newlines: bool,
 }
 
 impl Args {
@@ -133,6 +134,12 @@ impl Args {
                     .takes_value(false)
                     .help("Print to stdout like printing to a file with option --outfile"),
             )
+            .arg(
+                Arg::with_name("filter newlines")
+                    .long("--filter-newlines")
+                    .takes_value(false)
+                    .help("Filter newline characters from string fields"),
+            )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
@@ -165,6 +172,7 @@ impl Args {
         let print_statistics = matches.is_present("print statistics");
         let print_bitpos = matches.is_present("print bitposition");
         let cursor_jump = !matches.is_present("no cursor jumping");
+        let filter_newlines = matches.is_present("filter newlines");
         Self {
             infile,
             outfile,
@@ -182,6 +190,7 @@ impl Args {
             print_statistics,
             print_bitpos,
             cursor_jump,
+            filter_newlines,
         }
     }
 }
