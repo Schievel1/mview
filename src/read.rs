@@ -1,8 +1,11 @@
-use crate::{MAX_READ_SIZE, args::Args};
+use crate::{args::Args, MAX_READ_SIZE};
+use anyhow::{Context, Result};
 use crossbeam::channel::Sender;
+use pcap_parser::traits::PcapReaderIterator;
+use pcap_parser::*;
 use std::{
     fs::File,
-    io::{self, BufReader, Read, Result},
+    io::{self, BufReader, Read},
 };
 
 pub fn read_loop(args: &Args, write_tx: Sender<Vec<u8>>) -> Result<()> {
@@ -11,23 +14,61 @@ pub fn read_loop(args: &Args, write_tx: Sender<Vec<u8>>) -> Result<()> {
     } else {
         Box::new(BufReader::new(io::stdin()))
     };
+    let preader: Box<dyn Read> = if !args.infile.is_empty() {
+        Box::new(BufReader::new(File::open(&args.infile)?))
+    } else {
+        Box::new(BufReader::new(io::stdin()))
+    };
 
     let mut buffer = [0; MAX_READ_SIZE];
+    let mut pcapreader =
+        LegacyPcapReader::new(MAX_READ_SIZE, preader).context("Error creating PCAP reader.")?;
+
     loop {
         // read input
-        let num_read = match reader.read(&mut buffer) {
-            Ok(0) => continue,
-            Ok(x) => x,
-            Err(_) => break,
-        };
-        if args.read_head > 0 {
-            if write_tx.send(Vec::from(&buffer[..args.read_head])).is_err() {
-                break;
+        if args.pcap {
+            match pcapreader.next() {
+                Ok((offset, block)) => {
+                    if let PcapBlockOwned::Legacy(ablock) = block {
+                        if write_tx.send(Vec::from(ablock.data)).is_err() {
+                            break;
+                        }
+                    }
+                    pcapreader.consume(offset);
+                }
+                Err(PcapError::Eof) => {
+                    if args.infile.is_empty() {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                Err(PcapError::Incomplete) => {
+                    pcapreader.refill().unwrap();
+                }
+                Err(e) => panic!("error while reading: {:?}", e),
             }
-            break;
         } else {
-            if write_tx.send(Vec::from(&buffer[..num_read])).is_err() {
+            let num_read = match reader.read(&mut buffer) {
+                Ok(0) => {
+                    if args.infile.is_empty() {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                Ok(x) => x,
+                Err(_) => break,
+            };
+            if args.read_head > 0 {
+                if write_tx.send(Vec::from(&buffer[..args.read_head])).is_err() {
+                    break;
+                }
                 break;
+            } else {
+                if write_tx.send(Vec::from(&buffer[..num_read])).is_err() {
+                    break;
+                }
             }
         }
         buffer.fill(0);

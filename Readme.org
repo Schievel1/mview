@@ -79,6 +79,17 @@ SomeMoreData: 53
 Shouldbetest: test
 #+end_src
 
+** Reading captured data from tcpdump or wireshark
+Data from tcpdump and such is usually captured in a file format called [[https://en.wikipedia.org/wiki/Pcap][PCAP]]. Such files can be read by mview and the output of tcpdump can also be piped into mview.
+To do so, mview has the flag ~--pcap~.
+#+begin_src sh
+tcpdump -i eth0 -w - -U | mview -c ./myconfig --pcap
+#+end_src
+Or reading from a file
+#+begin_src sh
+mview -c ./myconfig --pcap -i mycapture.pcap
+#+end_src
+
 * Configuration file
 The tell mview what the mask is, we need to pass a configuration file to it with the ~-c / --config~ argument. The following points are the possible contents of that file.
 ** Comments

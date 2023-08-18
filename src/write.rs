@@ -402,6 +402,7 @@ mod tests {
             infile: "nil".to_string(),
             outfile: "nil".to_string(),
             config: "nil".to_string(),
+            pcap: false,
             chunksize: 0,
             offset: 0,
             bitoffset: 0,

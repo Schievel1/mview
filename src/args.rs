@@ -4,6 +4,7 @@ pub struct Args {
     pub infile: String,
     pub outfile: String,
     pub config: String,
+    pub pcap: bool,
     pub chunksize: usize,
     pub offset: usize,
     pub bitoffset: usize,
@@ -43,6 +44,12 @@ impl Args {
                     .takes_value(true)
 					.required(true)
                     .help("Definition of the datafields of a chunk"),
+            )
+            .arg(
+                Arg::with_name("pcap")
+                    .long("pcap")
+                    .takes_value(false)
+                    .help("Read from a PCAP formatted file or data stream"),
             )
             .arg(
                 Arg::with_name("chunksize")
@@ -144,6 +151,7 @@ impl Args {
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
         let outfile = matches.value_of("outfile").unwrap_or_default().to_string();
         let config = matches.value_of("config").unwrap_or_default().to_string();
+        let pcap = matches.is_present("pcap");
         let chunksize = matches
             .try_get_one::<usize>("chunksize")
             .unwrap_or_default()
@@ -177,6 +185,7 @@ impl Args {
             infile,
             outfile,
             config,
+            pcap,
             chunksize: *chunksize,
             offset: *offset,
             bitoffset: *bitoffset,

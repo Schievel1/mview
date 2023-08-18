@@ -1,9 +1,18 @@
-Shouldbehello:String:5
-SomeOtherData:u8
-SomeMoreData:bool8# comment
-SomeMoreData:u8  # another
-Shouldbetest:String:4
-EvenMoreData:String:3
+1:u8:hex
+2:u8:hex
+3:u8:hex
+4:u8:hex
+5:u8:hex
+6:u8:hex
+7:u8:hex
+8:u8:hex
+9:u8:hex
+# Shouldbehello:String:5
+# SomeOtherData:u8
+# SomeMoreData:bool8# comment
+# SomeMoreData:u8  # another
+# Shouldbetest:String:4
+# EvenMoreData:String:3
 # Field0(bool1):bool1
 # Field1(bool1):bool1
 # Field2(bool1):bool1
@@ -14,7 +23,7 @@ EvenMoreData:String:3
 # Field7(bool1):bool1
 # Field8(bool8):bool8
 # Two_Bytegap(bytegap2):bytegap:2
-Four_Bitgap(bitgap4):bitgap:4
+# Four_Bitgap(bitgap4):bitgap:4
 # Field9(u8):u8
 # Field10(u16):u16
 # Field11(i32):i32
