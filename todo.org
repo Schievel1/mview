@@ -29,3 +29,4 @@
 - [X] add possibility to dump whole chunk as ASCII (like rawbin and rawhex options)
 - [X] add option to filter newline characters from strings
   When new line chars are contained in string data and we print that out, it mangles output.
+- [X] add option to use PCAP files instead of raw data
