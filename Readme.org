@@ -45,6 +45,21 @@ The type ~bool8~ will interpret a whole byte like a boolean. Like in C anything 
 
 If we typed more data in that socket, mview would start over and display the next few bytes through that mask.
 
+** Reading captured data from tcpdump or wireshark
+Data from tcpdump and such is usually captured in a file format called [[https://en.wikipedia.org/wiki/Pcap][PCAP]]. Such files can be read by mview and the output of tcpdump can also be piped into mview.
+To do so, mview has the flag ~--pcap~.
+#+begin_src sh
+tcpdump -i eth0 -w - -U | mview -c ./myconfig --pcap
+#+end_src
+Or reading from a file
+#+begin_src sh
+mview -c ./myconfig --pcap -i mycapture.pcap
+#+end_src
+
+The arguments ~--rawhex~, ~--stats~ and ~--bitpos~ can then be used to get an idea of the length of a chunk, where it starts end ends, how long jumps over eventual IP headers should be etc.
+
+Using ~--pcap~ and the argument ~--timestamp~ the timestamps that are extracted from the PCAP input file or the PCAP input stream are used. (Without ~--pcap~ the argument ~--timestamp~ prints the current time the chunk is written to the output as timestamp. ~--timestamp~ does not make much sense when reading from a raw file rather than a raw stream or PCAP file.)
+
 ** Decoding a binary file
 Lets say you have a super secret header in a binary file and you are tired of reading raw hexadecimal values.
 Lets make such a file first:
@@ -79,16 +94,6 @@ SomeMoreData: 53
 Shouldbetest: test
 #+end_src
 
-** Reading captured data from tcpdump or wireshark
-Data from tcpdump and such is usually captured in a file format called [[https://en.wikipedia.org/wiki/Pcap][PCAP]]. Such files can be read by mview and the output of tcpdump can also be piped into mview.
-To do so, mview has the flag ~--pcap~.
-#+begin_src sh
-tcpdump -i eth0 -w - -U | mview -c ./myconfig --pcap
-#+end_src
-Or reading from a file
-#+begin_src sh
-mview -c ./myconfig --pcap -i mycapture.pcap
-#+end_src
 
 * Configuration file
 The tell mview what the mask is, we need to pass a configuration file to it with the ~-c / --config~ argument. The following points are the possible contents of that file.

@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use args::Args;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::fmt::{Binary, Debug, Display, UpperHex};
+use std::sync::{Arc, Mutex};
 use std::{
     fs::File,
     io::{BufRead, BufReader, Write},
@@ -16,6 +18,11 @@ pub const MAX_READ_SIZE: usize = 16 * 1024;
 pub const BYTE_TO_BIT: usize = 8;
 pub const HEX_LINE_SIZE: usize = 16; // how many bytes are printed in a line with --rawhex
 pub const BIN_LINE_SIZE: usize = 8; // how many bytes are printed in a line with --rawhex
+
+pub enum PcapTs {
+    Microsecs,
+    Nanosecs,
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Format {
@@ -98,7 +105,13 @@ pub fn print_raw_bin(writer: &mut dyn Write, chunk: &[u8], bin_lines: usize) -> 
 pub fn print_raw_ascii(writer: &mut dyn Write, chunk: &[u8], hex_lines: usize) -> Result<()> {
     for line in chunk.chunks(HEX_LINE_SIZE) {
         writer
-            .write_fmt(format_args!("[ {} ]\n", String::from_utf8_lossy(line).chars().filter(|c| *c != '\n').collect::<String>()))
+            .write_fmt(format_args!(
+                "[ {} ]\n",
+                String::from_utf8_lossy(line)
+                    .chars()
+                    .filter(|c| *c != '\n')
+                    .collect::<String>()
+            ))
             .context("Could now write to writer")?;
     }
     // last chunk has less bytes, so print empty lines
@@ -113,10 +126,36 @@ pub fn print_raw_ascii(writer: &mut dyn Write, chunk: &[u8], hex_lines: usize) -
     Ok(())
 }
 
-pub fn print_timestamp(writer: &mut dyn Write) -> Result<()> {
-    writer
-        .write_fmt(format_args!("{}\n", chrono::offset::Local::now()))
-        .context("Could now write to writer")?;
+pub fn print_timestamp(
+    writer: &mut dyn Write,
+    args: &Args,
+    pcap_ts: &Arc<Mutex<PcapTs>>,
+    pcapmsgheader: &PcapMsgHeader,
+) -> Result<()> {
+    if !args.pcap {
+        writer
+            .write_fmt(format_args!("{}\n", chrono::offset::Local::now()))
+            .context("Could now write to writer")?;
+    } else {
+        let factor = match *pcap_ts.lock().unwrap() {
+            // can use unwrap, lock() is blocking
+            PcapTs::Microsecs => 1_000,
+            PcapTs::Nanosecs => 1_000_000,
+        };
+        writer
+            .write_fmt(format_args!(
+                "{}\n",
+                DateTime::<Utc>::from_utc(
+                    NaiveDateTime::from_timestamp_opt(
+                        pcapmsgheader.timestamp_s.into(),
+                        pcapmsgheader.timestamp_us * factor
+                    )
+                    .unwrap_or_default(),
+                    Utc
+                )
+            ))
+            .context("Could now write to writer")?;
+    }
     Ok(())
 }
 
@@ -160,13 +199,15 @@ pub fn count_lines(args: &Args, stats: &Stats, n_conf_lines: usize) -> u16 {
 
 pub fn print_additional(
     args: &Args,
+    pcapmsgheader: &PcapMsgHeader,
+    pcap_ts: &Arc<Mutex<PcapTs>>,
     stats: &Stats,
     writer: &mut dyn Write,
     chunk: &[u8],
     chunksize: usize,
 ) -> Result<()> {
     if args.timestamp {
-        print_timestamp(writer)?;
+        print_timestamp(writer, args, pcap_ts, pcapmsgheader)?;
     }
     if args.print_statistics {
         print_statistics(stats, writer, chunksize)?;
@@ -246,6 +287,34 @@ pub fn chunksize_by_config(config_lines: &[String]) -> Result<usize> {
         }
     }
     Ok(bitlength)
+}
+
+#[derive(Default)]
+pub struct PcapMsgHeader {
+    timestamp_s: u32,
+    timestamp_us: u32,
+    _caplen: u32,
+    _origlen: u32,
+}
+
+impl PcapMsgHeader {
+    pub fn new(buffer: &mut [u8]) -> Self {
+        let mut tsbuf = [0u8; 4];
+        tsbuf.clone_from_slice(&buffer[..=3]);
+        let timestamp_s = u32::from_le_bytes(tsbuf);
+        tsbuf.clone_from_slice(&buffer[4..=7]);
+        let timestamp_us = u32::from_le_bytes(tsbuf);
+        tsbuf.clone_from_slice(&buffer[8..=11]);
+        let _caplen = u32::from_le_bytes(tsbuf);
+        tsbuf.clone_from_slice(&buffer[12..=15]);
+        let _origlen = u32::from_le_bytes(tsbuf);
+        PcapMsgHeader {
+            timestamp_s,
+            timestamp_us,
+            _caplen,
+            _origlen,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -749,8 +818,30 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
     }
     #[test]
     fn test_print_timestamp() {
+        let args = Args {
+            infile: "nil".to_string(),
+            outfile: "nil".to_string(),
+            config: "nil".to_string(),
+            pcap: false,
+            chunksize: 0,
+            offset: 0,
+            bitoffset: 0,
+            rawhex: false,
+            rawbin: false,
+            rawascii: false,
+            pause: 0,
+            little_endian: false,
+            timestamp: true,
+            read_head: 0,
+            print_statistics: false,
+            print_bitpos: false,
+            cursor_jump: false,
+            filter_newlines: false,
+        };
+        let pcapheader: PcapMsgHeader = Default::default();
+        let pcap_ts = Arc::new(Mutex::new(PcapTs::Microsecs));
         let mut output = Vec::new();
-        print_timestamp(&mut output).unwrap();
+        print_timestamp(&mut output, &args, &pcap_ts, &pcapheader).unwrap();
         let output = String::from_utf8(output).unwrap();
         let dt = Local
             .datetime_from_str(&output, "%Y-%m-%d %H:%M:%S%.f %:z\n")
