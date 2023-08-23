@@ -35,6 +35,7 @@ impl Args {
                 Arg::with_name("outfile")
                     .short('w')
                     .long("outfile")
+					.visible_short_alias('o')
                     .takes_value(true)
                     .help("Write output to a file instead of stdout"),
             )
@@ -53,24 +54,28 @@ impl Args {
                     .help("Read from a PCAP formatted file or data stream"),
             )
             .arg(
-                Arg::with_name("chunksize")
-                    .short('b')
+                Arg::with_name("chunksize (bytes)")
+                    .short('s')
                     .long("chunksize")
                     .takes_value(true)
                     .value_parser(clap::value_parser!(usize))
-                    .help("flush stdout and restart matching after n bytes"),
+                    .help("Restart matching after n bytes")
+				    .long_help("Restart matching after n bytes. If this argument is not given the size of a chunk is determined from the config.
+If chunksize is longer than a message, the chunk is filled with message data from the start until mview runs out of message data. Fields of the chunk that are left will not get a value.
+If chunksize is shorter than a message, the whole chunk will be filled with the message data, mview will print out that chunk and then start filling the next chunk with the remaining data from the message.
+For a graphical explaination of how mview handles message and chunk lengths see Readme.
+"),
             )
             .arg(
                 Arg::with_name("offset (bytes)")
-                    .short('o')
                     .long("offset")
+					.visible_alias("byteoffset")
                     .takes_value(true)
                     .value_parser(clap::value_parser!(usize))
                     .help("offset in bytes at the start of a chunk before parsing starts"),
             )
             .arg(
                 Arg::with_name("offset (bits)")
-                    .short('s')
                     .long("bitoffset")
                     .takes_value(true)
                     .value_parser(clap::value_parser!(usize))
@@ -80,6 +85,7 @@ impl Args {
                 Arg::with_name("rawhex")
                     .short('r')
                     .long("rawhex")
+					.visible_alias("raw")
                     .takes_value(false)
                     .help("Print raw hexdump of the chunk at top of output"),
             )
@@ -96,7 +102,7 @@ impl Args {
                     .help("Print raw ascii of the chunk at top of output"),
             )
             .arg(
-                Arg::with_name("pause")
+                Arg::with_name("pause (ms)")
                     .long("pause")
                     .short('p')
                     .takes_value(true)
@@ -105,7 +111,8 @@ impl Args {
             )
             .arg(
                 Arg::with_name("little endian")
-                    .long("le")
+					.long("little-endian")
+					.visible_aliases(&["le", "littleendian"])
                     .takes_value(false)
                     .help("Interpret integers as little endian (default is big endian)."),
             )
@@ -117,12 +124,11 @@ impl Args {
                     .help("Display timestamp of each chunk."),
             )
             .arg(
-                Arg::with_name("read head")
-                    .short('h')
+                Arg::with_name("head (bytes)")
                     .long("head")
                     .takes_value(true)
                     .value_parser(clap::value_parser!(usize))
-                    .help("Read only the first x bytes where is the number given and then exit."),
+                    .help("Read only the first x bytes where x is the number given, print that as a message and then exit."),
             )
             .arg(
                 Arg::with_name("print statistics")
@@ -140,7 +146,9 @@ impl Args {
                 Arg::with_name("no cursor jumping")
                     .long("--nojump")
                     .takes_value(false)
-                    .help("Print to stdout like printing to a file with option --outfile"),
+                    .help("Print to stdout like printing to a file with option --outfile")
+					.long_help("Print to stdout like printing to a file with option --outfile. Do not jump back the amount of lines printed before printing the next chunk when printing to stdout."),
+            )
             .arg(
                 Arg::with_name("clear")
                     .long("--clear")
@@ -152,7 +160,9 @@ impl Args {
                 Arg::with_name("filter newlines")
                     .long("--filter-newlines")
                     .takes_value(false)
-                    .help("Filter newline characters from string fields"),
+                    .help("Filter newline characters from string fields")
+                    .long_help("Filter newline characters from string fields. Normally mview tries to not alter the data of a message and prints it 'as is'.
+However, this can result it a mess when strings in the message contain control characters like \\n. To avoid making a mess this argument lets mview filter the strings from newline characters"),
             )
             .get_matches();
         let infile = matches.value_of("infile").unwrap_or_default().to_string();
@@ -160,28 +170,28 @@ impl Args {
         let config = matches.value_of("config").unwrap_or_default().to_string();
         let pcap = matches.is_present("pcap");
         let chunksize = matches
-            .try_get_one::<usize>("chunksize")
+            .try_get_one::<usize>("chunksize (bytes)")
             .unwrap_or_default()
             .unwrap_or(&0);
         let offset = matches
-            .try_get_one::<usize>("offset")
+            .try_get_one::<usize>("offset (bytes)")
             .unwrap_or_default()
             .unwrap_or(&0);
         let bitoffset = matches
-            .try_get_one::<usize>("bitoffset")
+            .try_get_one::<usize>("offset (bits)")
             .unwrap_or_default()
             .unwrap_or(&0);
         let rawhex = matches.is_present("rawhex");
         let rawbin = matches.is_present("rawbin");
         let rawascii = matches.is_present("rawascii");
         let pause = matches
-            .try_get_one::<u64>("pause")
+            .try_get_one::<u64>("pause (ms)")
             .unwrap_or_default()
             .unwrap_or(&0);
         let little_endian = matches.is_present("little endian");
         let timestamp = matches.is_present("timestamp");
         let read_head = matches
-            .try_get_one::<usize>("read head")
+            .try_get_one::<usize>("head (bytes)")
             .unwrap_or_default()
             .unwrap_or(&0);
         let print_statistics = matches.is_present("print statistics");
