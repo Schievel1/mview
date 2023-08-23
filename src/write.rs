@@ -11,10 +11,7 @@ use bitvec::{
 use core::time;
 use crossbeam::channel::Receiver;
 use crossterm::style::{self, Color, Stylize};
-use crossterm::{
-    cursor, execute,
-    terminal::{Clear, ClearType},
-};
+use crossterm::{cursor, execute, terminal};
 use std::sync::{Arc, Mutex};
 use std::{
     fs::File,
@@ -98,8 +95,17 @@ this means that some fields in the config will not be considered in the output b
             stats.chunk_count += 1;
 
             // in case we write to stdout, move the cursor back to the start
-            if is_stdout && !first_run && args.cursor_jump {
-                move_cursor(args, config_lines.len(), &stats)?;
+            if is_stdout {
+                if !first_run && args.cursor_jump && !args.clear {
+                    move_cursor(args, config_lines.len(), &stats)?;
+                }
+                if args.clear {
+                    execute!(
+                        io::stdout(),
+                        cursor::MoveTo(0, 0),
+                        terminal::Clear(terminal::ClearType::All)
+                    )?;
+                }
             }
 
             print_additional(
@@ -148,7 +154,7 @@ pub fn move_cursor(args: &Args, n_conf_lines: usize, stats: &Stats) -> Result<()
         cursor::MoveToColumn(0),
         // the following is necessary because writing in the terminal with a newline?
         cursor::MoveDown(1),
-        Clear(ClearType::FromCursorDown),
+        terminal::Clear(terminal::ClearType::FromCursorDown),
         cursor::MoveUp(1),
     )?;
     Ok(())
@@ -440,6 +446,7 @@ mod tests {
             print_statistics: false,
             print_bitpos: false,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         }
     }

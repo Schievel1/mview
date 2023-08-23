@@ -361,3 +361,7 @@ EvenMoreData: values size is bigger than what is left of that data chunk
 #+end_src
 
 However, it is also possible to use the ~--nojump~ argument instead. This makes mview print to stdout like it does to files.
+
+* Printing chunks 'on top of each other'
+Normally mview resets the cursor position for every chunk. It therefore print chunks 'on top of each other', so to speak. This behavior is hard to implement because different terminal emulators have different features and react differently to the same control messages.
+Therefore it can happen, that mview deletes to many or to few lines, or it does not delete the lines at all. For this mview can also clear the terminal instead with the ~--clear~ flag. With this flag an output always starts at top of the terminal and the terminal is cleared before a chunk is printed.

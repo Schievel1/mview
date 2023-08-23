@@ -18,6 +18,7 @@ pub struct Args {
     pub print_statistics: bool,
     pub print_bitpos: bool,
     pub cursor_jump: bool,
+    pub clear: bool,
     pub filter_newlines: bool,
 }
 
@@ -140,6 +141,12 @@ impl Args {
                     .long("--nojump")
                     .takes_value(false)
                     .help("Print to stdout like printing to a file with option --outfile"),
+            .arg(
+                Arg::with_name("clear")
+                    .long("--clear")
+                    .takes_value(false)
+                    .help("Clear the terminal before each chunk is printed")
+					.long_help("Clear the terminal before each chunk is printed. Counting lines then deleting them can be tricky and if it works depends on the terminal. Clearing the terminal almost always works."),
             )
             .arg(
                 Arg::with_name("filter newlines")
@@ -180,6 +187,7 @@ impl Args {
         let print_statistics = matches.is_present("print statistics");
         let print_bitpos = matches.is_present("print bitposition");
         let cursor_jump = !matches.is_present("no cursor jumping");
+        let clear = matches.is_present("clear");
         let filter_newlines = matches.is_present("filter newlines");
         Self {
             infile,
@@ -199,6 +207,7 @@ impl Args {
             print_statistics,
             print_bitpos,
             cursor_jump,
+            clear,
             filter_newlines,
         }
     }

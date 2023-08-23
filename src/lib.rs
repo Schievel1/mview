@@ -532,6 +532,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             print_statistics: false,
             print_bitpos: false,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         };
         let stats = Stats {
@@ -569,6 +570,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             print_statistics: false,
             print_bitpos: false,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         };
         let stats = Stats {
@@ -606,6 +608,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             print_statistics: false,
             print_bitpos: false,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         };
         let stats = Stats {
@@ -642,6 +645,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             print_statistics: false,
             print_bitpos: true,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         };
         let stats = Stats {
@@ -678,6 +682,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             print_statistics: true,
             print_bitpos: false,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         };
         let stats = Stats {
@@ -714,6 +719,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             print_statistics: false,
             print_bitpos: false,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         };
         let stats = Stats {
@@ -836,6 +842,7 @@ Field14(uarb4):uarb:4"; // should sum up to 135 bits
             print_statistics: false,
             print_bitpos: false,
             cursor_jump: false,
+            clear: false,
             filter_newlines: false,
         };
         let pcapheader: PcapMsgHeader = Default::default();
