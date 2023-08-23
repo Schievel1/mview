@@ -9,24 +9,16 @@ use std::{
 };
 
 pub fn read_loop(args: &Args, write_tx: Sender<Vec<u8>>) -> Result<()> {
-    let mut reader: Box<dyn Read> = if !args.infile.is_empty() {
-        Box::new(BufReader::new(File::open(&args.infile)?))
-    } else {
-        Box::new(BufReader::new(io::stdin()))
-    };
-    let preader: Box<dyn Read> = if !args.infile.is_empty() {
-        Box::new(BufReader::new(File::open(&args.infile)?))
-    } else {
-        Box::new(BufReader::new(io::stdin()))
-    };
-
-    let mut buffer = [0; MAX_READ_SIZE];
-    let mut pcapreader =
-        LegacyPcapReader::new(MAX_READ_SIZE, preader).context("Error creating PCAP reader.")?;
-
-    loop {
-        // read input
-        if args.pcap {
+    if args.pcap {
+        let reader: Box<dyn Read> = if !args.infile.is_empty() {
+            Box::new(BufReader::new(File::open(&args.infile)?))
+        } else {
+            Box::new(BufReader::new(io::stdin()))
+        };
+        let mut pcapreader =
+            LegacyPcapReader::new(MAX_READ_SIZE, reader).context("Error creating PCAP reader.")?;
+        loop {
+            // read input
             match pcapreader.next() {
                 Ok((offset, block)) => {
                     if let PcapBlockOwned::Legacy(ablock) = block {
@@ -48,7 +40,15 @@ pub fn read_loop(args: &Args, write_tx: Sender<Vec<u8>>) -> Result<()> {
                 }
                 Err(e) => panic!("error while reading: {:?}", e),
             }
+        }
+    } else {
+        let mut reader: Box<dyn Read> = if !args.infile.is_empty() {
+            Box::new(BufReader::new(File::open(&args.infile)?))
         } else {
+            Box::new(BufReader::new(io::stdin()))
+        };
+        let mut buffer = [0; MAX_READ_SIZE];
+        loop {
             let num_read = match reader.read(&mut buffer) {
                 Ok(0) => {
                     if args.infile.is_empty() {
@@ -71,8 +71,8 @@ pub fn read_loop(args: &Args, write_tx: Sender<Vec<u8>>) -> Result<()> {
                 }
             }
         }
-        buffer.fill(0);
     }
+
     let _ = write_tx.send(Vec::new());
     Ok(())
 }
