@@ -1,12 +1,18 @@
 [package]
 name = "mview"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
+description = "mview (Mask viewer) is a program in the style of Unix coreutils that lets you view raw data though a mask. The mask is configurable and supports the common data types."
+repository = "https://github.com/Schievel1/mview"
+categories = [ "command-line-utilities" ]
+authors = ["Pascal Jaeger <pascal.jaeger@leimstift.de>"]
+license = "AGPL-3.0-only"
 
 [dependencies]
+anstyle = "1.0.2"
 anyhow = "1.0.70"
 bitvec = "1.0.1"
-clap = "3.2.5"
+clap = { version = "4.3.24", features = ["cargo", "unstable-styles"] }
 chrono = "0.4.24"
 crossterm = "0.26.1"
 crossbeam = "0.8.2"
